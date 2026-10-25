@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+# VRAMER depends on the CUDA runtime and threads at link time.
+include(CMakeFindDependencyMacro)
+find_dependency(CUDAToolkit)
+find_dependency(Threads)
+
+include("${CMAKE_CURRENT_LIST_DIR}/vramerTargets.cmake")
+
+check_required_components(vramer)

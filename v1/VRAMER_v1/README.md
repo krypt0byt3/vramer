@@ -146,6 +146,31 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
 cmake --build build -j
 ```
 
+The build produces `libvramer.a`, `libvramer.so` (for ctypes/FFI), and the
+`vramer` CLI.
+
+## Install / use as a library
+
+```bash
+cmake --install build --prefix /usr/local   # headers, libs, CMake pkg, pkg-config
+```
+
+Consume from CMake:
+
+```cmake
+find_package(vramer REQUIRED)
+target_link_libraries(myapp PRIVATE vramer::vramer)        # or vramer::vramer_shared
+```
+
+or from pkg-config / plain compilers:
+
+```bash
+pkg-config --cflags --libs vramer
+```
+
+Python/Rust bind the C ABI (`vramer_c.h`) against `libvramer.so` — see
+`examples/python_paging_demo.py`.
+
 ## Use
 
 Detect hardware/topology:

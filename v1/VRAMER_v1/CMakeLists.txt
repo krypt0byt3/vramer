@@ -26,7 +26,11 @@ add_library(vramer STATIC
   src/vramer_c.cpp
 )
 
-target_include_directories(vramer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+include(GNUInstallDirs)
+
+target_include_directories(vramer PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_link_libraries(vramer PUBLIC CUDA::cudart Threads::Threads)
 target_compile_options(vramer PRIVATE
   $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra -Wpedantic>
@@ -41,9 +45,14 @@ if(VRAMER_BUILD_SHARED)
     src/cuda_pager.cu
     src/vramer_c.cpp
   )
-  target_include_directories(vramer_shared PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_include_directories(vramer_shared PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
   target_link_libraries(vramer_shared PUBLIC CUDA::cudart Threads::Threads)
-  set_target_properties(vramer_shared PROPERTIES OUTPUT_NAME vramer)
+  set_target_properties(vramer_shared PROPERTIES
+    OUTPUT_NAME vramer
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR})
 endif()
 
 add_executable(vramer_cli src/main.cu)
@@ -72,4 +81,51 @@ if(VRAMER_BUILD_TESTS)
   target_link_libraries(test_c_api PRIVATE vramer CUDA::cudart)
   set_target_properties(test_c_api PROPERTIES LINKER_LANGUAGE CXX)
   add_test(NAME c_api COMMAND test_c_api)
+endif()
+
+# ----------------------------------------------------------------------------
+# Install / packaging: makes VRAMER consumable as a library.
+#   find_package(vramer)  -> vramer::vramer (static) / vramer::vramer_shared
+#   pkg-config --cflags --libs vramer
+# ----------------------------------------------------------------------------
+option(VRAMER_INSTALL "Generate install + package-config rules" ON)
+if(VRAMER_INSTALL)
+  include(CMakePackageConfigHelpers)
+
+  set(VRAMER_EXPORT_TARGETS vramer vramer_cli)
+  if(VRAMER_BUILD_SHARED)
+    list(APPEND VRAMER_EXPORT_TARGETS vramer_shared)
+  endif()
+
+  install(TARGETS ${VRAMER_EXPORT_TARGETS}
+    EXPORT vramerTargets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+  install(DIRECTORY include/vramer DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+  install(EXPORT vramerTargets
+    FILE vramerTargets.cmake
+    NAMESPACE vramer::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vramer)
+
+  configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/vramerConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/vramerConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vramer)
+  write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/vramerConfigVersion.cmake
+    VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion)
+  install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/vramerConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/vramerConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/vramer)
+
+  # pkg-config for non-CMake consumers.
+  set(VRAMER_PC_LIBS "-lvramer")
+  configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/vramer.pc.in
+    ${CMAKE_CURRENT_BINARY_DIR}/vramer.pc @ONLY)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/vramer.pc
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 endif()

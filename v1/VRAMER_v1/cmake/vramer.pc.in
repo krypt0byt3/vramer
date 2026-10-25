@@ -1,0 +1,12 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+
+Name: VRAMER
+Description: Explicit host-memory <-> GPU-VRAM pager for model/tensor data
+Version: @PROJECT_VERSION@
+Requires:
+Libs: -L${libdir} @VRAMER_PC_LIBS@
+Libs.private: -lcudart -lpthread
+Cflags: -I${includedir}

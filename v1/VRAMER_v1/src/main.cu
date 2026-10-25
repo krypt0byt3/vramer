@@ -102,16 +102,44 @@ void plan(const Args& args) {
     const auto model = vramer::parse_bytes(get(args, "model-bytes"));
     const auto budget = vramer::parse_bytes(get(args, "vram-budget"));
     const auto page = vramer::parse_bytes(get(args, "page-size", "64MiB"));
+    // H2D bandwidth for the streaming estimate, GiB/s. Default is the measured
+    // A2/PCIe-Gen4-x8 figure; pass your own from `vramer bench`.
+    const double bw = std::stod(get(args, "bandwidth", "5.5"));
     if (!model || !budget || !page) throw std::invalid_argument("sizes must be non-zero");
     const auto slots = budget / page;
     const auto pages = (model + page - 1) / page;
-    const double resident = std::min(100.0, 100.0 * static_cast<double>(slots * page) / model);
+    const std::uint64_t resident_bytes = std::min<std::uint64_t>(slots * page, model);
+    const double resident = 100.0 * static_cast<double>(resident_bytes) / model;
     std::cout << "Model/source: " << vramer::human_bytes(model) << "\n"
               << "VRAM budget:  " << vramer::human_bytes(budget) << "\n"
               << "Page size:    " << vramer::human_bytes(page) << "\n"
               << "Source pages: " << pages << "\n"
               << "VRAM slots:   " << slots << "\n"
               << "Max resident: " << std::fixed << std::setprecision(1) << resident << "%\n";
+
+    if (resident_bytes >= model) {
+        std::cout << "\nThe whole model fits in the budget: it stays resident, nothing is\n"
+                     "streamed per token, and VRAMER adds no PCIe traffic. You don't need\n"
+                     "paging for this configuration.\n";
+        return;
+    }
+
+    // Streaming-bound ceiling: assume each token scans the full model once, so
+    // the non-resident fraction must be re-streamed H2D every token. With a
+    // scan-aware (MRU) policy the resident fraction is served from cache; the
+    // spill is the floor on per-token time, ignoring compute (which overlaps).
+    const std::uint64_t spill = model - resident_bytes;
+    const double spill_gib = static_cast<double>(spill) / (1024.0 * 1024.0 * 1024.0);
+    const double per_tok_s = spill_gib / bw;
+    std::cout << "\nStreaming estimate (H2D bandwidth " << std::setprecision(1) << bw << " GiB/s,\n"
+                 "assuming a full weight scan per token, MRU keeping the resident set hot):\n"
+              << "  Spilled / token:  " << vramer::human_bytes(spill) << "\n"
+              << "  H2D time / token: " << std::setprecision(1) << per_tok_s * 1000.0 << " ms\n"
+              << "  Tokens/s ceiling: " << std::setprecision(1) << (per_tok_s > 0 ? 1.0 / per_tok_s : 0.0)
+              << "  (PCIe-bound upper bound; real compute overlaps but adds its own time)\n";
+    if (per_tok_s > 0.2)
+        std::cout << "  NOTE: >200 ms/token of pure transfer -- paging works here, but it is\n"
+                     "  firmly PCIe-bound. Raise the budget or quantize to shrink the spill.\n";
 }
 
 struct RunResult {
@@ -295,7 +323,7 @@ void usage() {
 
 Commands:
   vramer detect
-  vramer plan --model-bytes 12GiB --vram-budget 6GiB [--page-size 64MiB]
+  vramer plan --model-bytes 12GiB --vram-budget 6GiB [--page-size 64MiB] [--bandwidth 5.5]
   vramer bench [options]
 
 bench options:
