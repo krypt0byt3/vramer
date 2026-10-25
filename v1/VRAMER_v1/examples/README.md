@@ -37,3 +37,19 @@ real quantized model.
 ```bash
 python3 examples/qlora_paged_linear.py          # binding self-check, no torch needed
 ```
+
+## `python_paging_demo.py`
+
+Minimal **runnable** Python demo (needs only `numpy` + a built `libvramer.so`):
+wraps a NumPy array as a `vramer_source_borrowed` host tier, pages it through a
+small VRAM budget, and verifies via the pager's own `bytes_h2d` that every byte
+reached the GPU. Proves the Python → ctypes → C ABI → pager → GPU data path end
+to end without PyTorch.
+
+```bash
+cmake --build build          # produces build/libvramer.so (VRAMER_BUILD_SHARED=ON)
+python3 examples/python_paging_demo.py
+# -> source=64 MiB budget=16 MiB page=4 MiB pages=16
+#    hits=0 misses=16 evictions=12 bytes_h2d=67108864 (64 MiB)
+#    python paging demo OK: NumPy -> borrowed source -> pager -> GPU verified
+```

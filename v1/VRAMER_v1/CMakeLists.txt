@@ -15,6 +15,7 @@ if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
 endif()
 
 option(VRAMER_BUILD_TESTS "Build VRAMER tests" ON)
+option(VRAMER_BUILD_SHARED "Also build libvramer.so (for ctypes/FFI bindings)" ON)
 
 find_package(CUDAToolkit REQUIRED)
 find_package(Threads REQUIRED)
@@ -31,6 +32,19 @@ target_compile_options(vramer PRIVATE
   $<$<COMPILE_LANGUAGE:CXX>:-Wall -Wextra -Wpedantic>
   $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr -lineinfo>
 )
+
+# Shared library for ctypes / Rust FFI: static .a cannot be dlopen'd. Same
+# sources, exports the C ABI (and C++) symbols. Produces libvramer.so.
+if(VRAMER_BUILD_SHARED)
+  add_library(vramer_shared SHARED
+    src/memory_source.cpp
+    src/cuda_pager.cu
+    src/vramer_c.cpp
+  )
+  target_include_directories(vramer_shared PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_link_libraries(vramer_shared PUBLIC CUDA::cudart Threads::Threads)
+  set_target_properties(vramer_shared PROPERTIES OUTPUT_NAME vramer)
+endif()
 
 add_executable(vramer_cli src/main.cu)
 set_target_properties(vramer_cli PROPERTIES OUTPUT_NAME vramer)

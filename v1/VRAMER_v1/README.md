@@ -86,8 +86,9 @@ a device-wide synchronization on the normal path.
   pages are flushed D2H to a `WritableMemorySource` on eviction or flush
 - **NUMA-aware source placement** (`--numa-node N` / `AnonymousRamSource`): binds
   host pages to the GPU-local node before first-touch (no-op on non-NUMA systems)
-- a **C ABI** (`vramer_c.h`) for Python/Rust bindings without a C++ toolchain,
-  plus reference adapters in `examples/` (llama.cpp PoC, QLoRA skeleton)
+- a **C ABI** (`vramer_c.h`) + a **shared `libvramer.so`** for Python/Rust
+  bindings without a C++ toolchain, plus reference code in `examples/` (llama.cpp
+  PoC, QLoRA skeleton, and a runnable NumPy+ctypes paging demo)
 - `detect`, `plan`, and `bench` CLI commands
 - PCI BDF + NUMA-node reporting
 - no Unified Memory / `cudaMallocManaged()` dependency
