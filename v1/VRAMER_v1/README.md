@@ -82,7 +82,12 @@ a device-wide synchronization on the normal path.
   H2D bytes/rate, and a one-time warning if `release_on()` is omitted
 - **multi-GPU independent caches** — one cache/stream/staging ring per GPU,
   driven concurrently (`bench --gpus 0,1`); ~2× aggregate H2D on 2× A2
-- a **C ABI** (`vramer_c.h`) for Python/Rust bindings without a C++ toolchain
+- **write-back** of mutable pages (`acquire_mutable` + `flush()`): dirty device
+  pages are flushed D2H to a `WritableMemorySource` on eviction or flush
+- **NUMA-aware source placement** (`--numa-node N` / `AnonymousRamSource`): binds
+  host pages to the GPU-local node before first-touch (no-op on non-NUMA systems)
+- a **C ABI** (`vramer_c.h`) for Python/Rust bindings without a C++ toolchain,
+  plus reference adapters in `examples/` (llama.cpp PoC, QLoRA skeleton)
 - `detect`, `plan`, and `bench` CLI commands
 - PCI BDF + NUMA-node reporting
 - no Unified Memory / `cudaMallocManaged()` dependency
@@ -239,18 +244,28 @@ Done in this release:
   host-bandwidth contention);
 - a **C ABI** (`include/vramer/vramer_c.h`) so Python (ctypes) and Rust (FFI /
   `cudarc`) can drive the pager without C++ — opaque handles, error-code
-  convention, no exceptions across the boundary, CUDA streams passed as `void*`.
+  convention, no exceptions across the boundary, CUDA streams passed as `void*`;
+- **NUMA source binding** (`--numa-node N`, `mbind`-based, no libnuma dependency);
+- **write-back** for mutable pages (`acquire_mutable` + `flush()`), validated by
+  `tests/test_writeback.cu`;
+- **engine-adapter scaffolding**: C-ABI reference programs in `examples/` (the
+  llama.cpp PoC paged a real Qwen2.5-14B shard at 98.3% hit rate) and design
+  docs `docs/LLAMACPP_ADAPTER.md` + `docs/QLORA_ADAPTER.md`.
 
-Remaining:
+Remaining (the full engine adapters, which need their external trees/hardware):
 
-1. topology-aware automatic NUMA binding / source allocation
-2. predictive layer-order prefetch (feed the real layer schedule to the worker)
-3. llama.cpp weight-paging adapter, then a vLLM KV-connector experiment
-4. a read-only QLoRA weight-paging adapter for PEFT/bitsandbytes (page the
-   frozen quantized base; keep adapter + optimizer state resident)
-5. TensorRT-LLM adapter
-6. a write-back / dirty-page path (prerequisite for paging *mutable* tensors,
-   e.g. full-fine-tuning optimizer state — expected to be PCIe-bound)
-7. optional CXL/PMEM-specific `MemorySource` implementations where the OS/API
-   exposes useful placement controls
+1. a *working* llama.cpp custom CUDA buffer type + scheduler hook (design in
+   `docs/LLAMACPP_ADAPTER.md`; the tensor/page contiguity problem is the main
+   risk — a tensor larger than a page may not land in contiguous slots)
+2. a *working* QLoRA `PagedFrozenLinear` for bitsandbytes/PEFT (design in
+   `docs/QLORA_ADAPTER.md`; helps only when the 4-bit base + activations exceed
+   VRAM, and is PCIe-bound for the paged fraction)
+3. automatic NUMA detection (bind each per-GPU source to that GPU's reported
+   node without a manual flag)
+4. predictive layer-order prefetch (feed the real layer schedule to the worker)
+5. a vLLM KV-connector experiment showcasing a CXL/PMEM/file-backed host tier
+6. TensorRT-LLM adapter (analogous to llama.cpp Boundary A via the C ABI +
+   a custom plugin/allocator)
+7. a `DevDaxSource` for character `/dev/dax` CXL/PMEM. Note: file-backed PMEM
+   (fsdax) and CXL-as-a-file already work today through `MmapFileSource`.
 

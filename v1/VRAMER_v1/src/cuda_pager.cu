@@ -63,6 +63,8 @@ void PageLease::release_on(cudaStream_t compute_stream) {
 CudaPager::CudaPager(MemorySourcePtr source, PagerConfig config)
     : source_(std::move(source)), config_(config) {
     if (!source_) throw std::invalid_argument("CudaPager requires a MemorySource");
+    // Enables acquire_mutable()/flush() write-back when the source supports it.
+    writable_source_ = dynamic_cast<WritableMemorySource*>(source_.get());
     if (config_.page_size == 0 || config_.vram_budget < config_.page_size)
         throw std::invalid_argument("invalid page size / VRAM budget");
     if (config_.staging_buffers == 0)
@@ -231,10 +233,16 @@ std::size_t CudaPager::reserve_staging(std::unique_lock<std::mutex>& lock) {
 }
 
 PageLease CudaPager::acquire(std::uint64_t page_id) {
-    return acquire_impl(page_id, /*is_prefetch=*/false);
+    return acquire_impl(page_id, /*is_prefetch=*/false, /*mutate=*/false);
 }
 
-PageLease CudaPager::acquire_impl(std::uint64_t page_id, bool is_prefetch) {
+PageLease CudaPager::acquire_mutable(std::uint64_t page_id) {
+    if (!writable_source_)
+        throw std::logic_error("acquire_mutable requires a WritableMemorySource");
+    return acquire_impl(page_id, /*is_prefetch=*/false, /*mutate=*/true);
+}
+
+PageLease CudaPager::acquire_impl(std::uint64_t page_id, bool is_prefetch, bool mutate) {
     std::unique_lock<std::mutex> lock(mutex_);
     VRAMER_CUDA(cudaSetDevice(config_.gpu));
     if (page_id >= page_count()) throw std::out_of_range("page_id exceeds MemorySource");
@@ -255,6 +263,7 @@ PageLease CudaPager::acquire_impl(std::uint64_t page_id, bool is_prefetch) {
             auto& slot = slots_[idx];
             ++slot.leases;
             slot.last_touch = ++clock_;
+            if (mutate) slot.dirty = true;
             // A prefetch that lands on an already-resident page is not a demand hit.
             if (!is_prefetch) ++stats_.hits;
             auto* ptr = static_cast<std::byte*>(device_cache_) + idx * config_.page_size;
@@ -264,26 +273,37 @@ PageLease CudaPager::acquire_impl(std::uint64_t page_id, bool is_prefetch) {
         // Miss. choose_victim() may throw if every slot is leased; it runs
         // before any state mutation so a throw leaves the pager unchanged.
         const std::size_t index = choose_victim();
-        if (slots_[index].page_id != UINT64_MAX) {
-            resident_.erase(slots_[index].page_id);
+        // Reserve the victim slot immediately (leases=1) so no concurrent
+        // victim search or same-page acquire can touch it while we evict/flush.
+        slots_[index].leases = 1;
+        const bool victim_dirty = slots_[index].dirty;
+        const std::uint64_t old_page = slots_[index].page_id;
+        const std::size_t old_valid = slots_[index].valid_bytes;
+        if (old_page != UINT64_MAX) {
+            resident_.erase(old_page);   // remove first: no one acquires the old page now
             ++stats_.evictions;
         }
+        // Write the evicted page back if it holds unsaved GPU writes. The device
+        // still holds the old bytes (the new H2D happens further below). This
+        // releases the lock during the D2H + CPU copy.
+        if (victim_dirty) flush_slot_data(index, old_page, old_valid, lock);
+        slots_[index].dirty = false;
 
         const std::uint64_t offset = page_id * config_.page_size;
         const std::size_t valid = static_cast<std::size_t>(
             std::min<std::uint64_t>(config_.page_size, source_->size() - offset));
         auto* device_ptr = static_cast<std::byte*>(device_cache_) + index * config_.page_size;
 
-        // Reserve + publish the slot BEFORE dropping the lock. leases=1 keeps it
-        // from being evicted, and loading=true makes concurrent acquires of this
-        // page coalesce above instead of launching a duplicate load.
+        // Publish the slot for the new page BEFORE dropping the lock. leases is
+        // already 1 (reserved above); loading=true makes concurrent acquires of
+        // this page coalesce above instead of launching a duplicate load.
         {
             auto& slot = slots_[index];
             slot.page_id = page_id;
             slot.valid_bytes = valid;
             slot.last_touch = ++clock_;
-            slot.leases = 1;
             slot.loading = true;
+            slot.dirty = mutate;
         }
         resident_[page_id] = index;
         if (is_prefetch) ++stats_.prefetches; else ++stats_.misses;
@@ -321,8 +341,49 @@ PageLease CudaPager::acquire_impl(std::uint64_t page_id, bool is_prefetch) {
     }
 }
 
+void CudaPager::flush_slot_data(std::size_t index, std::uint64_t page_id,
+                                std::size_t valid, std::unique_lock<std::mutex>& lock) {
+    if (!writable_source_) throw std::logic_error("flush on a non-writable source");
+    // All compute that read/wrote this page must finish before we read it back.
+    reap_completed_events(slots_[index], true);
+    const std::size_t stage_idx = reserve_staging(lock);
+    void* host = staging_[stage_idx].host;
+    auto* device_ptr = static_cast<std::byte*>(device_cache_) + index * config_.page_size;
+    const std::uint64_t offset = page_id * config_.page_size;
+
+    // Unlocked: D2H into the pinned buffer, then the CPU copy back to the source.
+    lock.unlock();
+    VRAMER_CUDA(cudaMemcpyAsync(host, device_ptr, valid, cudaMemcpyDeviceToHost, transfer_stream_));
+    VRAMER_CUDA(cudaStreamSynchronize(transfer_stream_));
+    writable_source_->write(offset, host, valid);
+    lock.lock();
+
+    staging_[stage_idx].reserved = false;
+    staging_[stage_idx].in_flight = false;  // stream was synchronized; nothing pending
+    staging_cv_.notify_all();
+    stats_.bytes_d2h += valid;
+}
+
+void CudaPager::flush() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    VRAMER_CUDA(cudaSetDevice(config_.gpu));
+    // Contract: call when no leases are live (e.g. between training steps). We
+    // flush unleased dirty pages; a leased page is skipped (it is still in use).
+    for (std::size_t i = 0; i < slots_.size(); ++i) {
+        if (!slots_[i].dirty || slots_[i].page_id == UINT64_MAX || slots_[i].leases != 0)
+            continue;
+        const std::uint64_t pid = slots_[i].page_id;
+        const std::size_t valid = slots_[i].valid_bytes;
+        slots_[i].leases = 1;  // reserve so a concurrent miss cannot reuse it mid-flush
+        flush_slot_data(i, pid, valid, lock);
+        slots_[i].dirty = false;
+        slots_[i].leases = 0;
+    }
+    load_cv_.notify_all();
+}
+
 void CudaPager::prefetch(std::uint64_t page_id) {
-    auto lease = acquire_impl(page_id, /*is_prefetch=*/true);
+    auto lease = acquire_impl(page_id, /*is_prefetch=*/true, /*mutate=*/false);
     // Release after the transfer stream reaches the page load. This keeps the
     // page resident but unleased, ready for a later cache hit.
     lease.wait_on(transfer_stream_);

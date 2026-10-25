@@ -10,9 +10,29 @@
 #include <string_view>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 
 namespace vramer {
+
+namespace {
+// Bind [addr, addr+len) to a single NUMA node via the mbind(2) syscall, so we
+// avoid a libnuma build dependency. Best-effort: returns false on failure.
+bool bind_to_numa_node(void* addr, std::size_t len, int node) {
+#if defined(__NR_mbind)
+    constexpr int kMpolBind = 2;       // MPOL_BIND
+    constexpr unsigned kMpolMfMove = 2; // MPOL_MF_MOVE
+    if (node < 0 || node >= 64) return false;
+    unsigned long nodemask = 1UL << static_cast<unsigned>(node);
+    long rc = ::syscall(__NR_mbind, addr, static_cast<unsigned long>(len),
+                        kMpolBind, &nodemask, 64UL /*maxnode*/, kMpolMfMove);
+    return rc == 0;
+#else
+    (void)addr; (void)len; (void)node;
+    return false;
+#endif
+}
+} // namespace
 
 static void checked_range(std::uint64_t total, std::uint64_t offset, std::size_t bytes) {
     if (offset > total || bytes > total - offset) {
@@ -82,13 +102,17 @@ void MmapFileSource::read(std::uint64_t offset, void* dst, std::size_t bytes) {
     std::memcpy(dst, mapping_ + offset, bytes);
 }
 
-AnonymousRamSource::AnonymousRamSource(std::uint64_t bytes, bool touch) : size_(bytes) {
+AnonymousRamSource::AnonymousRamSource(std::uint64_t bytes, bool touch, int numa_node) : size_(bytes) {
     if (bytes == 0) throw std::invalid_argument("AnonymousRamSource size must be > 0");
     void* p = ::mmap(nullptr, bytes, PROT_READ | PROT_WRITE,
                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (p == MAP_FAILED) throw std::runtime_error("anonymous mmap failed: " + std::string(std::strerror(errno)));
     mapping_ = static_cast<std::byte*>(p);
     (void)::madvise(mapping_, bytes, MADV_HUGEPAGE);
+
+    // Bind pages to the GPU-local NUMA node before first-touch so they are
+    // physically placed there. Best-effort: ignored on non-NUMA systems.
+    if (numa_node >= 0) (void)bind_to_numa_node(mapping_, bytes, numa_node);
 
     if (touch) {
         // Touch every base page so the benchmark represents real host memory,
@@ -111,6 +135,11 @@ std::string AnonymousRamSource::name() const { return "anonymous-host-memory"; }
 void AnonymousRamSource::read(std::uint64_t offset, void* dst, std::size_t bytes) {
     checked_range(size_, offset, bytes);
     std::memcpy(dst, mapping_ + offset, bytes);
+}
+
+void AnonymousRamSource::write(std::uint64_t offset, const void* src, std::size_t bytes) {
+    checked_range(size_, offset, bytes);
+    std::memcpy(mapping_ + offset, src, bytes);
 }
 
 void BorrowedMemorySource::read(std::uint64_t offset, void* dst, std::size_t bytes) {

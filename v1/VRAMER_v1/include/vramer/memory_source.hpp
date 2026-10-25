@@ -19,6 +19,15 @@ public:
     virtual void read(std::uint64_t offset, void* dst, std::size_t bytes) = 0;
 };
 
+// A source whose pages can be written back from the GPU. Required for paging
+// *mutable* tensor data (e.g. training state): the pager flushes dirty device
+// pages here on eviction or flush(). Read-only sources (mmap MAP_PRIVATE) do
+// not implement this, and the pager rejects acquire_mutable() against them.
+class WritableMemorySource : public MemorySource {
+public:
+    virtual void write(std::uint64_t offset, const void* src, std::size_t bytes) = 0;
+};
+
 class MmapFileSource final : public MemorySource {
 public:
     explicit MmapFileSource(std::string path);
@@ -38,9 +47,13 @@ private:
     const std::byte* mapping_ = nullptr;
 };
 
-class AnonymousRamSource final : public MemorySource {
+class AnonymousRamSource final : public WritableMemorySource {
 public:
-    explicit AnonymousRamSource(std::uint64_t bytes, bool touch = true);
+    // numa_node >= 0 binds the allocation to that NUMA node (MPOL_BIND) before
+    // first-touch, so the backing pages land on the memory closest to the GPU.
+    // -1 leaves placement to the kernel's default policy. On non-NUMA systems
+    // (numa_node reported as -1 by `detect`) this is a no-op.
+    explicit AnonymousRamSource(std::uint64_t bytes, bool touch = true, int numa_node = -1);
     ~AnonymousRamSource() override;
 
     AnonymousRamSource(const AnonymousRamSource&) = delete;
@@ -49,6 +62,7 @@ public:
     std::uint64_t size() const noexcept override { return size_; }
     std::string name() const override;
     void read(std::uint64_t offset, void* dst, std::size_t bytes) override;
+    void write(std::uint64_t offset, const void* src, std::size_t bytes) override;
 
 private:
     std::uint64_t size_ = 0;

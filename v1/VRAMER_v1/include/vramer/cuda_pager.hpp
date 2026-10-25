@@ -53,6 +53,7 @@ struct PagerStats {
     std::uint64_t source_read_ns = 0;      // time in MemorySource::read -> pinned
     std::uint64_t stall_ns = 0;            // time blocked waiting on staging/eviction
     std::uint64_t lease_sync_fallbacks = 0; // release_on() omitted; sync fallback hit
+    std::uint64_t bytes_d2h = 0;           // dirty pages written back to the source
 
     double hit_rate() const noexcept {
         const std::uint64_t total = hits + misses;
@@ -108,6 +109,15 @@ public:
 
     PageLease acquire(std::uint64_t page_id);
 
+    // Like acquire(), but marks the page dirty: its device bytes will be written
+    // back to the (writable) source on eviction or flush(). Throws if the source
+    // is not a WritableMemorySource. Use this for mutable tensor data.
+    PageLease acquire_mutable(std::uint64_t page_id);
+
+    // Write every dirty, currently-unleased resident page back to the source and
+    // clear its dirty flag. Call when no leases are live (e.g. end of a step).
+    void flush();
+
     // Synchronous prefetch: load a page resident (unleased) on the calling
     // thread. Blocks on the source read but not on compute.
     void prefetch(std::uint64_t page_id);
@@ -142,6 +152,7 @@ private:
         // so it is never an eviction candidate, and concurrent acquires of the
         // same page coalesce by waiting on load_cv_ until this clears.
         bool loading = false;
+        bool dirty = false;  // device bytes differ from the source; flush before reuse
         cudaEvent_t load_done = nullptr;
         std::vector<cudaEvent_t> pending_uses;
     };
@@ -153,7 +164,12 @@ private:
         bool reserved = false;   // exclusively held by an in-progress load
     };
 
-    PageLease acquire_impl(std::uint64_t page_id, bool is_prefetch);
+    PageLease acquire_impl(std::uint64_t page_id, bool is_prefetch, bool mutate);
+    // Write a slot's device bytes back to the writable source. Releases `lock`
+    // during the D2H + CPU copy. Caller must have reserved the slot (leases>0 or
+    // removed from resident_) so no other thread touches it meanwhile.
+    void flush_slot_data(std::size_t index, std::uint64_t page_id,
+                         std::size_t valid, std::unique_lock<std::mutex>& lock);
     void wait_slot(std::size_t slot, cudaStream_t stream);
     void release_slot_async(std::size_t slot, cudaStream_t stream);
     void release_slot_sync(std::size_t slot);
@@ -166,6 +182,7 @@ private:
     void worker_loop();
 
     MemorySourcePtr source_;
+    WritableMemorySource* writable_source_ = nullptr;  // non-null iff source is writable
     PagerConfig config_;
     void* device_cache_ = nullptr;
     cudaStream_t transfer_stream_ = nullptr;

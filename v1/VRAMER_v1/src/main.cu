@@ -175,6 +175,7 @@ void print_result(const std::string& label, const RunResult& r) {
               << "  src read:    " << std::setprecision(3)
               << static_cast<double>(r.stats.source_read_ns) / 1e6 << " ms\n"
               << "  stall:       " << static_cast<double>(r.stats.stall_ns) / 1e6 << " ms\n"
+              << "  D2H bytes:   " << vramer::human_bytes(r.stats.bytes_d2h) << " (write-back)\n"
               << "  sync fallbk: " << r.stats.lease_sync_fallbacks << "\n"
               << "  checksum:    " << r.checksum << "\n";
 }
@@ -202,6 +203,7 @@ void bench(const Args& args) {
     const std::string source_kind = get(args, "source", "ram");
     const std::string evict = get(args, "eviction", "lru");
     const int compute_reps = std::stoi(get(args, "compute-reps", "1"));
+    const int numa_node = std::stoi(get(args, "numa-node", "-1"));
     // --gpus 0,1 runs an independent cache per GPU concurrently; --gpu N is the
     // single-GPU shorthand (default 0).
     const std::vector<int> gpus = parse_gpu_list(get(args, "gpus", get(args, "gpu", "0")));
@@ -214,7 +216,7 @@ void bench(const Args& args) {
         source = std::make_shared<vramer::MmapFileSource>(path);
     } else if (source_kind == "ram") {
         auto bytes = vramer::parse_bytes(get(args, "bytes", "4GiB"));
-        source = std::make_shared<vramer::AnonymousRamSource>(bytes, true);
+        source = std::make_shared<vramer::AnonymousRamSource>(bytes, true, numa_node);
     } else {
         throw std::invalid_argument("--source must be ram or file");
     }
@@ -310,6 +312,7 @@ bench options:
   --prefetch-ahead N      stay N pages ahead of the demand cursor (needs workers)
   --eviction lru|mru      eviction policy (default lru; mru is scan-resistant)
   --compute-reps N        per-page kernel work multiplier (default 1)
+  --numa-node N           bind RAM source to NUMA node N (default -1 = off)
 
 Examples:
   vramer detect
