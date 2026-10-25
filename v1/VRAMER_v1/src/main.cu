@@ -234,11 +234,22 @@ void bench(const Args& args) {
     const std::string source_kind = get(args, "source", "ram");
     const std::string evict = get(args, "eviction", "lru");
     const int compute_reps = std::stoi(get(args, "compute-reps", "1"));
-    const int numa_node = std::stoi(get(args, "numa-node", "-1"));
     // --gpus 0,1 runs an independent cache per GPU concurrently; --gpu N is the
     // single-GPU shorthand (default 0).
     const std::vector<int> gpus = parse_gpu_list(get(args, "gpus", get(args, "gpu", "0")));
     if (gpus.empty()) throw std::invalid_argument("no GPUs specified");
+
+    // --numa-node N, or "auto" to bind the host source to the first GPU's node.
+    const std::string numa_arg = get(args, "numa-node", "-1");
+    int numa_node = -1;
+    if (numa_arg == "auto") {
+        char pci[32]{};
+        if (cudaDeviceGetPCIBusId(pci, sizeof(pci), gpus[0]) == cudaSuccess)
+            numa_node = gpu_numa_node(pci);
+        std::cout << "NUMA auto: GPU " << gpus[0] << " -> node " << numa_node << "\n";
+    } else {
+        numa_node = std::stoi(numa_arg);
+    }
 
     vramer::MemorySourcePtr source;
     if (source_kind == "file") {
@@ -450,9 +461,10 @@ void probe(const Args& args) {
 }
 
 void usage() {
-    std::cout << R"(VRAMER 1.0 - explicit host-memory <-> VRAM pager
+    std::cout << R"(VRAMER - explicit host-memory <-> VRAM pager
 
 Commands:
+  vramer --version | --help
   vramer detect
   vramer probe [--size 256MiB] [--iters 20] [--gpus 0,1] [--emit-profile hw.json]
   vramer plan --model-bytes 12GiB --vram-budget 6GiB [--page-size 64MiB] [--bandwidth 5.5]
@@ -476,7 +488,7 @@ bench options:
   --prefetch-ahead N      stay N pages ahead of the demand cursor (needs workers)
   --eviction lru|mru      eviction policy (default lru; mru is scan-resistant)
   --compute-reps N        per-page kernel work multiplier (default 1)
-  --numa-node N           bind RAM source to NUMA node N (default -1 = off)
+  --numa-node N|auto      bind RAM source to NUMA node N; 'auto' = GPU-local node
 
 Examples:
   vramer detect
@@ -489,19 +501,33 @@ Examples:
 
 } // namespace
 
+#ifndef VRAMER_VERSION
+#define VRAMER_VERSION "0.2.0"
+#endif
+
 int main(int argc, char** argv) {
     try {
         if (argc < 2) { usage(); return 1; }
         const std::string cmd = argv[1];
+        if (cmd == "--version" || cmd == "-v" || cmd == "version") {
+            std::cout << "vramer " << VRAMER_VERSION << "\n";
+            return 0;
+        }
+        if (cmd == "--help" || cmd == "-h" || cmd == "help") { usage(); return 0; }
         const Args args = parse_args(argc, argv, 2);
         if (cmd == "detect") detect();
         else if (cmd == "probe") probe(args);
         else if (cmd == "plan") plan(args);
         else if (cmd == "bench") bench(args);
-        else { usage(); return 1; }
+        else {
+            std::cerr << "VRAMER: unknown command '" << cmd << "'\n\n";
+            usage();
+            return 1;
+        }
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "VRAMER error: " << e.what() << '\n';
+        std::cerr << "VRAMER error: " << e.what()
+                  << "\n(run 'vramer --help' for usage)\n";
         return 2;
     }
 }

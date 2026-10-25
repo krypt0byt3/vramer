@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(VRAMER VERSION 1.0.0 LANGUAGES C CXX CUDA)
+project(VRAMER VERSION 0.2.0 LANGUAGES C CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -58,6 +58,7 @@ endif()
 add_executable(vramer_cli src/main.cu)
 set_target_properties(vramer_cli PROPERTIES OUTPUT_NAME vramer)
 target_link_libraries(vramer_cli PRIVATE vramer CUDA::cudart)
+target_compile_definitions(vramer_cli PRIVATE VRAMER_VERSION="${PROJECT_VERSION}")
 
 if(VRAMER_BUILD_TESTS)
   enable_testing()

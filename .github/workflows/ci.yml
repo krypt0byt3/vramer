@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  # Compile the C++/CUDA library in a CUDA container. GitHub's hosted runners
+  # have no GPU, so this proves the code BUILDS; the ctest suite (which needs a
+  # GPU) runs in the gpu-tests job below on a self-hosted runner.
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.6.2-devel-ubuntu24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends cmake ninja-build g++
+      - name: Configure
+        run: cmake -S v1/VRAMER_v1 -B build -G Ninja
+             -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=86
+             -DVRAMER_BUILD_TESTS=ON
+      - name: Build
+        run: cmake --build build -j
+      # Note: `ctest` is intentionally NOT run here — it requires an NVIDIA GPU.
+
+  # Python tooling (planner/detector/scorer) — no GPU needed.
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Syntax-check tooling
+        run: python -m py_compile src/vramer_detect.py src/vramer_plan.py src/vramer_score.py
+      - name: Planner smoke test
+        run: |
+          python src/vramer_plan.py --profile profiles/current-machine.json \
+            --model profiles/llama-70b.json --gpus 2 --matrix || true
+      - name: Python package (if present)
+        if: ${{ hashFiles('python/pyproject.toml') != '' }}
+        run: |
+          python -m pip install -e 'python/[dev]'
+          cd python && python -m pytest -q
+
+  # Enable on a machine with an NVIDIA GPU by registering a self-hosted runner
+  # labelled `gpu`. Runs the real ctest suite (pager, write-back, concurrency,
+  # c_api). Disabled by default via the `if` guard.
+  gpu-tests:
+    if: ${{ false }}  # flip to true once a [self-hosted, gpu] runner is registered
+    runs-on: [self-hosted, gpu]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build + test
+        run: |
+          cmake -S v1/VRAMER_v1 -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=86
+          cmake --build build -j
+          ctest --test-dir build --output-on-failure
