@@ -70,9 +70,16 @@ a device-wide synchronization on the normal path.
 - asynchronous H2D copies on a dedicated CUDA stream
 - compute-stream/event synchronization
 - leases to prevent eviction while GPU work is in flight
+- optional background **prefetch worker pool** (`prefetch_async`) with a
+  capacity-bounded queue and resident-page dedup (never thrashes the cache)
+- **telemetry**: demand hit rate, prefetch count, source-read time, stall time,
+  H2D bytes/rate, and a one-time warning if `release_on()` is omitted
 - `detect`, `plan`, and `bench` CLI commands
 - PCI BDF + NUMA-node reporting
 - no Unified Memory / `cudaMallocManaged()` dependency
+
+See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for how VRAMER plugs into
+inference engines (vLLM's KV connector API, llama.cpp weight paging).
 
 ## What v1.0 is NOT yet
 
@@ -183,15 +190,42 @@ an effective page size. Start with 16, 32, 64, 128, and 256 MiB pages.
 When the RTX 5060 arrives, build for `sm_120` and deliberately sweep the resident
 fraction, e.g. 100%, 80%, 60%, 40%, to measure the PCIe spill penalty.
 
-## v1.1 targets
+## Measured on NVIDIA A2 (SM86, PCIe Gen4)
 
-1. topology-aware automatic NUMA binding / source allocation
-2. multi-GPU independent caches and transfer streams
-3. asynchronous host-source prefetch worker so source->pinned memcpy overlaps H2D
-4. predictive layer-order prefetch instead of generic LRU
-5. TensorRT-LLM adapter
-6. llama.cpp / Prism adapter
-7. telemetry: cache hit rate, H2D latency, PCIe throughput, stall time per layer
+A residency/page-size sweep (`scripts/resident_sweep.sh`, raw data in
+`benchmarks/a2-residency-sweep.txt`) surfaced three load-bearing facts:
+
+1. **Generic LRU gives 0% reuse on a sequential full scan.** At any resident
+   fraction below 100%, multi-pass demand hit rate is 0% — a scan larger than
+   the cache evicts page 0 right before the next pass needs it (the classic
+   LRU/Belady sequential-scan pathology). For token-by-token layer streaming,
+   LRU is the *wrong* policy once the model exceeds the VRAM budget. A
+   scan-aware / layer-order eviction policy is therefore a correctness-shaped
+   win, not a micro-optimization.
+2. **The CPU source→pinned copy dominates and is serialized by the cache
+   mutex.** Throughput is flat (~5.6 GiB/s) across resident fractions and the
+   `src read` counter is ~85–90% of per-page time. Moving the source read out
+   from under the lock (so it overlaps H2D/compute) is the top throughput lever
+   — and the reason the current prefetch worker reaches 98% hit rate but no
+   speedup on single-pass streaming.
+3. **64 MiB is the page-size sweet spot on A2** (16 MiB loses ~10% to
+   per-transfer overhead; 128/256 MiB add nothing).
+
+## v1.1 targets (reordered by measured impact)
+
+1. **Lock-free source reads** — reserve slot + private staging under the lock,
+   run `MemorySource::read` and issue the H2D *outside* it, coalescing
+   concurrent/duplicate loads of the same page via an in-progress map. This is
+   what makes the prefetch worker actually overlap. (Correctness hazard to
+   respect: a coalescing waiter must block on a `load_done` event that is
+   genuinely *not-ready* from reservation until the real `cudaMemcpyAsync`
+   records it — do not reuse the pre-completed init event.)
+2. **Scan-aware / predictive layer-order eviction** instead of generic LRU.
+3. multi-GPU independent caches and transfer streams
+4. topology-aware automatic NUMA binding / source allocation
+5. a C ABI so Rust/Python engines can bind the pager (see `docs/INTEGRATION.md`)
+6. llama.cpp weight-paging adapter, then a vLLM KV-connector experiment
+7. TensorRT-LLM adapter
 8. optional CXL/PMEM-specific `MemorySource` implementations where the OS/API
    exposes useful placement controls
 

@@ -115,6 +115,8 @@ void bench(const Args& args) {
     const auto page = vramer::parse_bytes(get(args, "page-size", "64MiB"));
     const unsigned staging = static_cast<unsigned>(std::stoul(get(args, "staging", "2")));
     const unsigned passes = static_cast<unsigned>(std::stoul(get(args, "passes", "1")));
+    const unsigned prefetch_workers = static_cast<unsigned>(std::stoul(get(args, "prefetch-workers", "0")));
+    const std::uint64_t prefetch_ahead = std::stoull(get(args, "prefetch-ahead", "0"));
     const std::string source_kind = get(args, "source", "ram");
 
     vramer::MemorySourcePtr source;
@@ -134,13 +136,15 @@ void bench(const Args& args) {
     cfg.vram_budget = budget;
     cfg.page_size = page;
     cfg.staging_buffers = staging;
+    cfg.prefetch_workers = prefetch_workers;
 
     std::cout << "Source:       " << source->name() << "\n"
               << "Source size:  " << vramer::human_bytes(source->size()) << "\n"
               << "GPU:          " << gpu << "\n"
               << "VRAM budget:  " << vramer::human_bytes(budget) << "\n"
               << "Page size:    " << vramer::human_bytes(page) << "\n"
-              << "Staging ring: " << staging << " x " << vramer::human_bytes(page) << " pinned\n";
+              << "Staging ring: " << staging << " x " << vramer::human_bytes(page) << " pinned\n"
+              << "Prefetch:     " << prefetch_workers << " worker(s), ahead=" << prefetch_ahead << "\n";
 
     vramer::CudaPager pager(source, cfg);
     cudaStream_t compute = nullptr;
@@ -150,9 +154,15 @@ void bench(const Args& args) {
     VRAMER_CUDA(cudaMalloc(reinterpret_cast<void**>(&sink), sizeof(*sink)));
     VRAMER_CUDA(cudaMemsetAsync(sink, 0, sizeof(*sink), compute));
 
+    const std::uint64_t pages = pager.page_count();
     auto start = std::chrono::steady_clock::now();
     for (unsigned pass = 0; pass < passes; ++pass) {
-        for (std::uint64_t p = 0; p < pager.page_count(); ++p) {
+        // Prime the prefetch pipeline for this pass.
+        for (std::uint64_t k = 0; k < prefetch_ahead && k < pages; ++k) pager.prefetch_async(k);
+        for (std::uint64_t p = 0; p < pages; ++p) {
+            // Stay `prefetch_ahead` pages in front of the demand cursor.
+            if (prefetch_ahead && p + prefetch_ahead < pages)
+                pager.prefetch_async(p + prefetch_ahead);
             auto lease = pager.acquire(p);
             lease.wait_on(compute);
             const int threads = 256;
@@ -174,13 +184,19 @@ void bench(const Args& args) {
     const double gib = static_cast<double>(s.bytes_h2d) / (1024.0 * 1024.0 * 1024.0);
 
     std::cout << "\nResults\n"
-              << "  elapsed:    " << std::fixed << std::setprecision(3) << sec << " s\n"
-              << "  H2D bytes:  " << vramer::human_bytes(s.bytes_h2d) << "\n"
-              << "  H2D rate*:  " << std::setprecision(2) << (sec ? gib / sec : 0.0) << " GiB/s\n"
-              << "  hits:       " << s.hits << "\n"
-              << "  misses:     " << s.misses << "\n"
-              << "  evictions:  " << s.evictions << "\n"
-              << "  checksum:   " << checksum << "\n"
+              << "  elapsed:     " << std::fixed << std::setprecision(3) << sec << " s\n"
+              << "  H2D bytes:   " << vramer::human_bytes(s.bytes_h2d) << "\n"
+              << "  H2D rate*:   " << std::setprecision(2) << (sec ? gib / sec : 0.0) << " GiB/s\n"
+              << "  hits:        " << s.hits << "\n"
+              << "  misses:      " << s.misses << "\n"
+              << "  hit rate:    " << std::setprecision(1) << 100.0 * s.hit_rate() << "%\n"
+              << "  prefetches:  " << s.prefetches << " (queue skips " << s.prefetch_queue_skips << ")\n"
+              << "  evictions:   " << s.evictions << "\n"
+              << "  src read:    " << std::setprecision(3)
+              << static_cast<double>(s.source_read_ns) / 1e6 << " ms\n"
+              << "  stall:       " << static_cast<double>(s.stall_ns) / 1e6 << " ms\n"
+              << "  sync fallbk: " << s.lease_sync_fallbacks << "\n"
+              << "  checksum:    " << checksum << "\n"
               << "\n*End-to-end pager rate: includes source->pinned staging copy, H2D,\n"
               << " lightweight GPU work, and cache management.\n";
 
@@ -205,11 +221,15 @@ bench options:
   --page-size SIZE        paging granularity (default 64MiB)
   --staging N             pinned staging buffers (default 2)
   --passes N              sequential passes (default 1)
+  --prefetch-workers N    background prefetch worker threads (default 0)
+  --prefetch-ahead N      stay N pages ahead of the demand cursor (needs workers)
 
 Examples:
   vramer detect
   vramer bench --source ram --bytes 12GiB --vram-budget 6GiB --page-size 64MiB
   vramer bench --source file --file model.gguf --vram-budget 6GiB --passes 2
+  vramer bench --source ram --bytes 12GiB --vram-budget 6GiB --page-size 64MiB \
+    --prefetch-workers 1 --prefetch-ahead 2
 )";
 }
 

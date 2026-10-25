@@ -1,0 +1,46 @@
+VRAMER residency sweep  gpu=0  source=8GiB  passes=3  2026-10-25T19:18:17Z
+
+resident   budget   page      elapsed    hit_rate  H2D_rate   stall_ms  
+-- resident-fraction sweep (page=64MiB) --
+100%       8GiB     64MiB     1.419 s    66.7%     5.64 GiB/s 276.553 ms
+75%        6GiB     64MiB     4.226 s    0.0%      5.68 GiB/s 614.784 ms
+50%        4GiB     64MiB     4.236 s    0.0%      5.67 GiB/s 682.983 ms
+25%        2GiB     64MiB     4.236 s    0.0%      5.67 GiB/s 843.281 ms
+12%        1GiB     64MiB     4.238 s    0.0%      5.66 GiB/s 803.322 ms
+
+-- page-size sweep (resident=50%, budget=4GiB) --
+50%        4GiB     16MiB     4.675 s    0.0%      5.13 GiB/s 286.287 ms
+50%        4GiB     32MiB     4.284 s    0.0%      5.60 GiB/s 704.357 ms
+50%        4GiB     64MiB     4.212 s    0.0%      5.70 GiB/s 688.904 ms
+50%        4GiB     128MiB    4.223 s    0.0%      5.68 GiB/s 872.681 ms
+50%        4GiB     256MiB    4.261 s    0.0%      5.63 GiB/s 714.029 ms
+
+-- prefetch A/B (resident=50%, page=64MiB, single pass) --
+baseline   4GiB     64MiB     1.420 s    0.0%      5.64 GiB/s 303.647 ms
+prefetch   4GiB     64MiB     2.357 s    9.4%      5.09 GiB/s 219.917 ms
+
+================================================================
+INTERPRETATION (2x NVIDIA A2, SM86, PCIe Gen4, 78.5 GiB host)
+================================================================
+
+1. LRU is PESSIMAL for sequential full-scan access.
+   At any resident fraction < 100%, the 3-pass demand hit rate is 0.0%.
+   A sequential scan larger than the cache evicts page 0 (now the LRU
+   victim) exactly before the next pass needs it again -- the classic
+   Belady/LRU sequential-scan pathology. For token-by-token model-layer
+   streaming (scan layers 0..N every token) this means generic LRU yields
+   ZERO reuse once the model exceeds the VRAM budget. => scan-aware /
+   MRU-ish eviction is a real, high-value feature, not a nicety.
+
+2. End-to-end throughput is flat at ~5.6-5.7 GiB/s regardless of resident
+   fraction, and src-read time dominates the per-page cost. The pager is
+   bottlenecked by the CPU source->pinned memcpy, which currently runs
+   while holding the global cache mutex. => moving the source read outside
+   the lock (so it overlaps H2D/compute) is the top throughput lever.
+
+3. Page size: 64 MiB is the sweet spot on A2. 16 MiB loses ~10% to
+   per-transfer overhead; 128/256 MiB give no further gain.
+
+4. The prefetch worker now avoids thrashing (H2D traffic no longer doubles)
+   and reaches high hit rates, but does not yet speed up single-pass
+   streaming because the source read is lock-serialized (see #2).

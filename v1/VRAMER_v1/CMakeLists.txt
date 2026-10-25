@@ -40,4 +40,8 @@ if(VRAMER_BUILD_TESTS)
   add_executable(test_memory_source tests/test_memory_source.cpp)
   target_link_libraries(test_memory_source PRIVATE vramer)
   add_test(NAME memory_source COMMAND test_memory_source)
+
+  add_executable(test_pager tests/test_pager.cu)
+  target_link_libraries(test_pager PRIVATE vramer CUDA::cudart)
+  add_test(NAME pager COMMAND test_pager)
 endif()
