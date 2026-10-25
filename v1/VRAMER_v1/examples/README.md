@@ -25,6 +25,35 @@ Validated against a real 3.7 GiB Qwen2.5-14B shard paged through a 512 MiB
 budget: **98.3% hit rate** with one-ahead prefetch (only the cold first page
 misses).
 
+## `llamacpp/` — real ggml-cuda integration (verified)
+
+Two standalone programs that link **both** llama.cpp's ggml/ggml-cuda and VRAMER,
+proving that real CUDA kernels consume VRAMER-paged weights. They need a built
+llama.cpp checkout (see `docs/LLAMACPP_ADAPTER.md`).
+
+```bash
+# build llama.cpp with CUDA first (one time):
+git clone --depth 1 https://github.com/ggml-org/llama.cpp /tmp/llama.cpp
+cmake -S /tmp/llama.cpp -B /tmp/llama.cpp/build -DGGML_CUDA=ON \
+      -DCMAKE_CUDA_ARCHITECTURES=86 -DCMAKE_BUILD_TYPE=Release -DLLAMA_CURL=OFF
+cmake --build /tmp/llama.cpp/build -j
+
+cd examples/llamacpp && make LLAMA=/tmp/llama.cpp
+CUDA_VISIBLE_DEVICES=1 ./vramer_ggml_mulmat /path/to/model.gguf
+CUDA_VISIBLE_DEVICES=1 ./vramer_ggml_layer  /path/to/model.gguf
+```
+
+- `vramer_ggml_mulmat.cpp` — pages one large GGUF weight (e.g. 138 MiB
+  `output.weight`) through a budget **half its size**, D2D-gathers it into
+  contiguous device scratch, runs a real `ggml_mul_mat` on the CUDA backend, and
+  verifies the result against a CPU-from-file reference (**max_abs_diff 1.5e-8**).
+- `vramer_ggml_layer.cpp` — cycles all 7 weight tensors of a real transformer
+  block through an 8 MiB / 2-slot budget (< the 10.37 MiB layer) over two
+  simulated tokens; MRU gives 77.8% reuse, all 7 numerically verified.
+
+The remaining step to a *full* adapter is a custom `ggml_backend_buffer_type` +
+scheduler hook inside llama.cpp itself; the load-bearing mechanism is proven here.
+
 ## `qlora_paged_linear.py`
 
 Python (`ctypes`) skeleton for a QLoRA-style paged frozen-base layer: a

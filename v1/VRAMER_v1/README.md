@@ -249,15 +249,23 @@ Done in this release:
 - **NUMA source binding** (`--numa-node N`, `mbind`-based, no libnuma dependency);
 - **write-back** for mutable pages (`acquire_mutable` + `flush()`), validated by
   `tests/test_writeback.cu`;
-- **engine-adapter scaffolding**: C-ABI reference programs in `examples/` (the
-  llama.cpp PoC paged a real Qwen2.5-14B shard at 98.3% hit rate) and design
-  docs `docs/LLAMACPP_ADAPTER.md` + `docs/QLORA_ADAPTER.md`.
+- **verified ggml-cuda integration**: `examples/llamacpp/` runs real
+  `ggml_mul_mat` on the CUDA backend against VRAMER-paged GGUF weights — a
+  138 MiB weight through a half-size budget matched a CPU reference to 1.5e-8,
+  and a whole transformer block cycled through a sub-layer budget at 77.8% MRU
+  reuse. Plus the C-ABI PoC (paged a real Qwen2.5-14B shard at 98.3% hit rate),
+  a runnable Python demo, and design docs `docs/LLAMACPP_ADAPTER.md` +
+  `docs/QLORA_ADAPTER.md`.
 
 Remaining (the full engine adapters, which need their external trees/hardware):
 
-1. a *working* llama.cpp custom CUDA buffer type + scheduler hook (design in
-   `docs/LLAMACPP_ADAPTER.md`; the tensor/page contiguity problem is the main
-   risk — a tensor larger than a page may not land in contiguous slots)
+1. a *full* llama.cpp adapter: a custom `ggml_backend_buffer_type` + per-layer
+   scheduler hook inside llama.cpp. The mechanism is already verified in
+   `examples/llamacpp/` — a real `ggml_mul_mat` consumes a 138 MiB weight paged
+   through a half-size budget (matched a CPU reference to 1.5e-8), and a whole
+   transformer block cycles through a sub-layer budget at 77.8% MRU reuse. What
+   remains is wiring it into llama.cpp's own token loop; the tensor/page
+   contiguity cost (D2D gather, or page_size ≥ largest tensor) is the trade-off.
 2. a *working* QLoRA `PagedFrozenLinear` for bitsandbytes/PEFT (design in
    `docs/QLORA_ADAPTER.md`; helps only when the 4-bit base + activations exceed
    VRAM, and is PCIe-bound for the paged fraction)

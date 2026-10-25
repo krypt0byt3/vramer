@@ -5,6 +5,19 @@ This document extends **Boundary A** (weight/tensor residency) from
 engineering design, not a pitch: where the integration is clean it says so, and
 where it fights the framework it says that too.
 
+> **Status (verified on NVIDIA A2, SM86).** The load-bearing mechanism is
+> proven by `examples/llamacpp/` (see `examples/README.md`):
+> - a real `ggml_mul_mat` on the CUDA backend consumes a 138 MiB GGUF weight
+>   paged through a budget **half its size** (D2D-gather into contiguous
+>   scratch), result matching a CPU-from-file reference to **1.5e-8**;
+> - all 7 weight tensors of a real transformer block cycled through an 8 MiB /
+>   2-slot budget (< the 10.37 MiB layer) with MRU reuse (77.8% hit rate), all
+>   numerically verified.
+>
+> What remains for a *full* adapter is integration, not research: a custom
+> `ggml_backend_buffer_type` + a per-layer scheduler hook inside llama.cpp (§2/§4
+> below). The contiguity problem (§3/§5) is the main hot-path cost.
+
 The one-sentence thesis: **VRAMER lets llama.cpp run a model whose weights
 exceed VRAM by paging the GGUF through a fixed VRAM budget during the token
 loop, as an alternative to `--n-gpu-layers` partial offload.** VRAMER does not
