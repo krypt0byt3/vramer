@@ -1,0 +1,232 @@
+#include "vramer/common.hpp"
+#include "vramer/cuda_common.hpp"
+#include "vramer/cuda_pager.hpp"
+#include "vramer/memory_source.hpp"
+
+#include <cuda_runtime.h>
+
+#include <chrono>
+#include <cstdint>
+#include <cstdlib>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include <sys/sysinfo.h>
+
+namespace {
+
+using Args = std::unordered_map<std::string, std::string>;
+
+Args parse_args(int argc, char** argv, int start) {
+    Args out;
+    for (int i = start; i < argc; ++i) {
+        std::string a = argv[i];
+        if (a.rfind("--", 0) != 0) throw std::invalid_argument("expected option, got: " + a);
+        a.erase(0, 2);
+        if (i + 1 < argc && std::string(argv[i + 1]).rfind("--", 0) != 0) out[a] = argv[++i];
+        else out[a] = "1";
+    }
+    return out;
+}
+
+std::string get(const Args& a, const std::string& k, const std::string& def = {}) {
+    auto it = a.find(k); return it == a.end() ? def : it->second;
+}
+
+std::uint64_t host_ram_bytes() {
+    struct sysinfo si{};
+    if (::sysinfo(&si) != 0) return 0;
+    return static_cast<std::uint64_t>(si.totalram) * si.mem_unit;
+}
+
+int gpu_numa_node(const char* pci) {
+    std::string p = "/sys/bus/pci/devices/" + std::string(pci) + "/numa_node";
+    std::ifstream f(p);
+    int node = -1;
+    if (f) f >> node;
+    return node;
+}
+
+void detect() {
+    int count = 0;
+    VRAMER_CUDA(cudaGetDeviceCount(&count));
+    std::cout << "VRAMER 1.0 hardware detect\n";
+    std::cout << "Host RAM: " << vramer::human_bytes(host_ram_bytes()) << "\n";
+    std::cout << "CUDA devices: " << count << "\n\n";
+
+    for (int i = 0; i < count; ++i) {
+        cudaDeviceProp p{};
+        VRAMER_CUDA(cudaGetDeviceProperties(&p, i));
+        VRAMER_CUDA(cudaSetDevice(i));
+        std::size_t free_b = 0, total_b = 0;
+        VRAMER_CUDA(cudaMemGetInfo(&free_b, &total_b));
+        char pci[32]{};
+        VRAMER_CUDA(cudaDeviceGetPCIBusId(pci, sizeof(pci), i));
+        std::cout << "GPU " << i << ": " << p.name << "\n"
+                  << "  SM: " << p.major << '.' << p.minor << "\n"
+                  << "  VRAM total/free: " << vramer::human_bytes(total_b)
+                  << " / " << vramer::human_bytes(free_b) << "\n"
+                  << "  PCI: " << pci << "  NUMA node: " << gpu_numa_node(pci) << "\n"
+                  << "  async engines: " << p.asyncEngineCount << "\n"
+                  << "  unified addressing: " << p.unifiedAddressing << "\n"
+                  << "  managed memory: " << p.managedMemory << "\n"
+                  << "  concurrent managed access: " << p.concurrentManagedAccess << "\n\n";
+    }
+}
+
+__global__ void sample_kernel(const std::uint8_t* data, std::size_t n,
+                              unsigned long long* sink) {
+    unsigned long long local = 0;
+    const std::size_t sample_stride = 4096;
+    std::size_t sample = blockIdx.x * blockDim.x + threadIdx.x;
+    std::size_t samples = (n + sample_stride - 1) / sample_stride;
+    std::size_t grid = blockDim.x * gridDim.x;
+    for (std::size_t s = sample; s < samples; s += grid) {
+        std::size_t i = s * sample_stride;
+        if (i < n) local += data[i];
+    }
+    if (local) atomicAdd(sink, local);
+}
+
+void plan(const Args& args) {
+    const auto model = vramer::parse_bytes(get(args, "model-bytes"));
+    const auto budget = vramer::parse_bytes(get(args, "vram-budget"));
+    const auto page = vramer::parse_bytes(get(args, "page-size", "64MiB"));
+    if (!model || !budget || !page) throw std::invalid_argument("sizes must be non-zero");
+    const auto slots = budget / page;
+    const auto pages = (model + page - 1) / page;
+    const double resident = std::min(100.0, 100.0 * static_cast<double>(slots * page) / model);
+    std::cout << "Model/source: " << vramer::human_bytes(model) << "\n"
+              << "VRAM budget:  " << vramer::human_bytes(budget) << "\n"
+              << "Page size:    " << vramer::human_bytes(page) << "\n"
+              << "Source pages: " << pages << "\n"
+              << "VRAM slots:   " << slots << "\n"
+              << "Max resident: " << std::fixed << std::setprecision(1) << resident << "%\n";
+}
+
+void bench(const Args& args) {
+    const int gpu = std::stoi(get(args, "gpu", "0"));
+    const auto budget = vramer::parse_bytes(get(args, "vram-budget", "2GiB"));
+    const auto page = vramer::parse_bytes(get(args, "page-size", "64MiB"));
+    const unsigned staging = static_cast<unsigned>(std::stoul(get(args, "staging", "2")));
+    const unsigned passes = static_cast<unsigned>(std::stoul(get(args, "passes", "1")));
+    const std::string source_kind = get(args, "source", "ram");
+
+    vramer::MemorySourcePtr source;
+    if (source_kind == "file") {
+        auto path = get(args, "file");
+        if (path.empty()) throw std::invalid_argument("--source file requires --file PATH");
+        source = std::make_shared<vramer::MmapFileSource>(path);
+    } else if (source_kind == "ram") {
+        auto bytes = vramer::parse_bytes(get(args, "bytes", "4GiB"));
+        source = std::make_shared<vramer::AnonymousRamSource>(bytes, true);
+    } else {
+        throw std::invalid_argument("--source must be ram or file");
+    }
+
+    vramer::PagerConfig cfg;
+    cfg.gpu = gpu;
+    cfg.vram_budget = budget;
+    cfg.page_size = page;
+    cfg.staging_buffers = staging;
+
+    std::cout << "Source:       " << source->name() << "\n"
+              << "Source size:  " << vramer::human_bytes(source->size()) << "\n"
+              << "GPU:          " << gpu << "\n"
+              << "VRAM budget:  " << vramer::human_bytes(budget) << "\n"
+              << "Page size:    " << vramer::human_bytes(page) << "\n"
+              << "Staging ring: " << staging << " x " << vramer::human_bytes(page) << " pinned\n";
+
+    vramer::CudaPager pager(source, cfg);
+    cudaStream_t compute = nullptr;
+    VRAMER_CUDA(cudaSetDevice(gpu));
+    VRAMER_CUDA(cudaStreamCreateWithFlags(&compute, cudaStreamNonBlocking));
+    unsigned long long* sink = nullptr;
+    VRAMER_CUDA(cudaMalloc(reinterpret_cast<void**>(&sink), sizeof(*sink)));
+    VRAMER_CUDA(cudaMemsetAsync(sink, 0, sizeof(*sink), compute));
+
+    auto start = std::chrono::steady_clock::now();
+    for (unsigned pass = 0; pass < passes; ++pass) {
+        for (std::uint64_t p = 0; p < pager.page_count(); ++p) {
+            auto lease = pager.acquire(p);
+            lease.wait_on(compute);
+            const int threads = 256;
+            const int blocks = 64;
+            sample_kernel<<<blocks, threads, 0, compute>>>(
+                static_cast<const std::uint8_t*>(lease.device_ptr()), lease.bytes(), sink);
+            VRAMER_CUDA(cudaGetLastError());
+            lease.release_on(compute);
+        }
+    }
+    VRAMER_CUDA(cudaStreamSynchronize(compute));
+    pager.synchronize();
+    auto stop = std::chrono::steady_clock::now();
+
+    unsigned long long checksum = 0;
+    VRAMER_CUDA(cudaMemcpy(&checksum, sink, sizeof(checksum), cudaMemcpyDeviceToHost));
+    auto s = pager.stats();
+    const double sec = std::chrono::duration<double>(stop - start).count();
+    const double gib = static_cast<double>(s.bytes_h2d) / (1024.0 * 1024.0 * 1024.0);
+
+    std::cout << "\nResults\n"
+              << "  elapsed:    " << std::fixed << std::setprecision(3) << sec << " s\n"
+              << "  H2D bytes:  " << vramer::human_bytes(s.bytes_h2d) << "\n"
+              << "  H2D rate*:  " << std::setprecision(2) << (sec ? gib / sec : 0.0) << " GiB/s\n"
+              << "  hits:       " << s.hits << "\n"
+              << "  misses:     " << s.misses << "\n"
+              << "  evictions:  " << s.evictions << "\n"
+              << "  checksum:   " << checksum << "\n"
+              << "\n*End-to-end pager rate: includes source->pinned staging copy, H2D,\n"
+              << " lightweight GPU work, and cache management.\n";
+
+    cudaFree(sink);
+    cudaStreamDestroy(compute);
+}
+
+void usage() {
+    std::cout << R"(VRAMER 1.0 - explicit host-memory <-> VRAM pager
+
+Commands:
+  vramer detect
+  vramer plan --model-bytes 12GiB --vram-budget 6GiB [--page-size 64MiB]
+  vramer bench [options]
+
+bench options:
+  --gpu N                 CUDA device (default 0)
+  --source ram|file       backing source (default ram)
+  --bytes SIZE            RAM source size (default 4GiB)
+  --file PATH             file source for mmap mode
+  --vram-budget SIZE      device-cache budget (default 2GiB)
+  --page-size SIZE        paging granularity (default 64MiB)
+  --staging N             pinned staging buffers (default 2)
+  --passes N              sequential passes (default 1)
+
+Examples:
+  vramer detect
+  vramer bench --source ram --bytes 12GiB --vram-budget 6GiB --page-size 64MiB
+  vramer bench --source file --file model.gguf --vram-budget 6GiB --passes 2
+)";
+}
+
+} // namespace
+
+int main(int argc, char** argv) {
+    try {
+        if (argc < 2) { usage(); return 1; }
+        const std::string cmd = argv[1];
+        const Args args = parse_args(argc, argv, 2);
+        if (cmd == "detect") detect();
+        else if (cmd == "plan") plan(args);
+        else if (cmd == "bench") bench(args);
+        else { usage(); return 1; }
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "VRAMER error: " << e.what() << '\n';
+        return 2;
+    }
+}

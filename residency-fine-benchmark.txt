@@ -1,0 +1,840 @@
+
+========== GPU WEIGHTS 0.25 / RUN 1 ==========
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:63: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[TensorRT-LLM] TensorRT LLM version: 1.1.0
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Using C++ session
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[10/16/2026-00:35:42] [TRT-LLM] [W] Implicitly setting QWenConfig.seq_length = 8192
+[10/16/2026-00:35:42] [TRT-LLM] [W] Implicitly setting QWenConfig.qwen_type = qwen2
+[10/16/2026-00:35:42] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_intermediate_size = 0
+[10/16/2026-00:35:42] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_shared_expert_intermediate_size = 0
+[10/16/2026-00:35:42] [TRT-LLM] [W] Implicitly setting QWenConfig.tie_word_embeddings = False
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set dtype to float16.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set bert_attention_plugin to auto.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set gpt_attention_plugin to float16.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set gemm_plugin to None.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set explicitly_disable_gemm_plugin to True.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set gemm_swiglu_plugin to None.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set fp8_rowwise_gemm_plugin to None.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set qserve_gemm_plugin to None.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set identity_plugin to None.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set nccl_plugin to None.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set lora_plugin to None.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set dora_plugin to False.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set weight_only_groupwise_quant_matmul_plugin to None.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set weight_only_quant_matmul_plugin to None.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set smooth_quant_plugins to True.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set smooth_quant_gemm_plugin to None.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set layernorm_quantization_plugin to None.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set rmsnorm_quantization_plugin to None.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set quantize_per_token_plugin to False.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set quantize_tensor_plugin to False.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set moe_plugin to auto.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set mamba_conv1d_plugin to auto.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set low_latency_gemm_plugin to None.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set low_latency_gemm_swiglu_plugin to None.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set gemm_allreduce_plugin to None.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set context_fmha to True.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set bert_context_fmha_fp32_acc to False.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set paged_kv_cache to True.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set remove_input_padding to True.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set norm_quant_fusion to False.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set reduce_fusion to False.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set user_buffer to False.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set tokens_per_block to 32.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set use_paged_context_fmha to True.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set use_fp8_context_fmha to False.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set fuse_fp4_quant to False.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set multiple_profiles to False.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set paged_state to False.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set streamingllm to False.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set manage_weights to False.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set use_fused_mlp to False.
+[10/16/2026-00:35:42] [TRT-LLM] [I] Set pp_reduce_scatter to False.
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[TensorRT-LLM][INFO] Rank 0 is using GPU 0
+[TensorRT-LLM][INFO] TRTGptModel maxNumSequences: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBatchSize: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBeamWidth: 1
+[TensorRT-LLM][INFO] TRTGptModel maxSequenceLen: 128
+[TensorRT-LLM][INFO] TRTGptModel maxDraftLen: 0
+[TensorRT-LLM][INFO] TRTGptModel mMaxAttentionWindowSize: (128) * 48
+[TensorRT-LLM][INFO] TRTGptModel enableTrtOverlap: 0
+[TensorRT-LLM][INFO] TRTGptModel normalizeLogProbs: 1
+[TensorRT-LLM][INFO] TRTGptModel maxNumTokens: 64
+[TensorRT-LLM][INFO] TRTGptModel maxInputLen: 64 = min(maxSequenceLen - 1, maxNumTokens) since context FMHA and usePackedInput are enabled
+[TensorRT-LLM][INFO] TRTGptModel If model type is encoder, maxInputLen would be reset in trtEncoderModel to maxInputLen: min(maxSequenceLen, maxNumTokens).
+[TensorRT-LLM][INFO] Capacity Scheduler Policy: GUARANTEED_NO_EVICT
+[TensorRT-LLM][INFO] Context Chunking Scheduler Policy: None
+[TensorRT-LLM][INFO] Loaded engine size: 28203 MiB
+[TensorRT-LLM][INFO] This engine can stream its weights. Please use setWeightStreamingBudgetV2() to enable it during execution.
+[TensorRT-LLM][INFO] - Minimum budget: 0 bytes
+[TensorRT-LLM][INFO] - Maximum budget: 29540067584 bytes
+[TensorRT-LLM][INFO] Engine load time 114570 ms
+[TensorRT-LLM][INFO] Inspecting the engine to identify potential runtime issues...
+[TensorRT-LLM][INFO] The profiling verbosity of the engine does not allow this analysis to proceed. Re-build the engine with 'detailed' profiling verbosity to get more diagnostics.
+[TensorRT-LLM][INFO] Set gpu weights percent to 0.250000, which is 7385016832 bytes. Valid range: 0 bytes - 29540067584 bytes.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 1790.26 MiB for execution context memory.
+[TensorRT-LLM][INFO] gatherContextLogits: 0
+[TensorRT-LLM][INFO] gatherGenerationLogits: 0
+[TensorRT-LLM][INFO] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +7042, now: CPU 28171, GPU 7058 (MiB)
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 595.81 KB GPU memory for runtime buffers.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 2.39 MB GPU memory for decoder.
+[TensorRT-LLM][INFO] Memory usage when calculating max tokens in paged kv cache: total: 14.61 GiB, available: 5.82 GiB
+[TensorRT-LLM][INFO] Blocks per window size:
+[TensorRT-LLM][INFO] [windowSize=128] {.primaryBlocks=30, .secondayBlocks=0}
+[TensorRT-LLM][INFO] Max KV cache blocks per sequence: 4 [window size=128], tokens per block=32, primary blocks=30, secondary blocks=0
+[TensorRT-LLM][INFO] Number of tokens per block: 32.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 0.18 GiB for max tokens in paged KV cache (960).
+[TensorRT-LLM][INFO] CacheTransceiver is disabled.
+[10/16/2026-00:37:55] [TRT-LLM] [I] Load engine takes: 133.076575756073 sec
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+Input [Text 0]: "<|im_start|>system
+You are a helpful assistant.<|im_end|>
+<|im_start|>user
+Explain PCIe bandwidth in one short paragraph.<|im_end|>
+<|im_start|>assistant
+"
+Output [Text 0 Beam 0]: "PCIe (Peripheral Component Interconnect Express) bandwidth refers to the maximum data transfer"
+[W1016 00:39:21.266992131 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())
+WALL=260.246 sec | USER=120.499 sec | SYS=91.763 sec
+
+========== GPU WEIGHTS 0.25 / RUN 2 ==========
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:63: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[TensorRT-LLM] TensorRT LLM version: 1.1.0
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Using C++ session
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[10/16/2026-00:40:02] [TRT-LLM] [W] Implicitly setting QWenConfig.seq_length = 8192
+[10/16/2026-00:40:02] [TRT-LLM] [W] Implicitly setting QWenConfig.qwen_type = qwen2
+[10/16/2026-00:40:02] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_intermediate_size = 0
+[10/16/2026-00:40:02] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_shared_expert_intermediate_size = 0
+[10/16/2026-00:40:02] [TRT-LLM] [W] Implicitly setting QWenConfig.tie_word_embeddings = False
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set dtype to float16.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set bert_attention_plugin to auto.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set gpt_attention_plugin to float16.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set gemm_plugin to None.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set explicitly_disable_gemm_plugin to True.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set gemm_swiglu_plugin to None.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set fp8_rowwise_gemm_plugin to None.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set qserve_gemm_plugin to None.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set identity_plugin to None.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set nccl_plugin to None.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set lora_plugin to None.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set dora_plugin to False.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set weight_only_groupwise_quant_matmul_plugin to None.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set weight_only_quant_matmul_plugin to None.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set smooth_quant_plugins to True.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set smooth_quant_gemm_plugin to None.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set layernorm_quantization_plugin to None.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set rmsnorm_quantization_plugin to None.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set quantize_per_token_plugin to False.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set quantize_tensor_plugin to False.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set moe_plugin to auto.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set mamba_conv1d_plugin to auto.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set low_latency_gemm_plugin to None.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set low_latency_gemm_swiglu_plugin to None.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set gemm_allreduce_plugin to None.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set context_fmha to True.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set bert_context_fmha_fp32_acc to False.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set paged_kv_cache to True.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set remove_input_padding to True.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set norm_quant_fusion to False.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set reduce_fusion to False.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set user_buffer to False.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set tokens_per_block to 32.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set use_paged_context_fmha to True.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set use_fp8_context_fmha to False.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set fuse_fp4_quant to False.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set multiple_profiles to False.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set paged_state to False.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set streamingllm to False.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set manage_weights to False.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set use_fused_mlp to False.
+[10/16/2026-00:40:02] [TRT-LLM] [I] Set pp_reduce_scatter to False.
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[TensorRT-LLM][INFO] Rank 0 is using GPU 0
+[TensorRT-LLM][INFO] TRTGptModel maxNumSequences: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBatchSize: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBeamWidth: 1
+[TensorRT-LLM][INFO] TRTGptModel maxSequenceLen: 128
+[TensorRT-LLM][INFO] TRTGptModel maxDraftLen: 0
+[TensorRT-LLM][INFO] TRTGptModel mMaxAttentionWindowSize: (128) * 48
+[TensorRT-LLM][INFO] TRTGptModel enableTrtOverlap: 0
+[TensorRT-LLM][INFO] TRTGptModel normalizeLogProbs: 1
+[TensorRT-LLM][INFO] TRTGptModel maxNumTokens: 64
+[TensorRT-LLM][INFO] TRTGptModel maxInputLen: 64 = min(maxSequenceLen - 1, maxNumTokens) since context FMHA and usePackedInput are enabled
+[TensorRT-LLM][INFO] TRTGptModel If model type is encoder, maxInputLen would be reset in trtEncoderModel to maxInputLen: min(maxSequenceLen, maxNumTokens).
+[TensorRT-LLM][INFO] Capacity Scheduler Policy: GUARANTEED_NO_EVICT
+[TensorRT-LLM][INFO] Context Chunking Scheduler Policy: None
+[TensorRT-LLM][INFO] Loaded engine size: 28203 MiB
+[TensorRT-LLM][INFO] This engine can stream its weights. Please use setWeightStreamingBudgetV2() to enable it during execution.
+[TensorRT-LLM][INFO] - Minimum budget: 0 bytes
+[TensorRT-LLM][INFO] - Maximum budget: 29540067584 bytes
+[TensorRT-LLM][INFO] Engine load time 115552 ms
+[TensorRT-LLM][INFO] Inspecting the engine to identify potential runtime issues...
+[TensorRT-LLM][INFO] The profiling verbosity of the engine does not allow this analysis to proceed. Re-build the engine with 'detailed' profiling verbosity to get more diagnostics.
+[TensorRT-LLM][INFO] Set gpu weights percent to 0.250000, which is 7385016832 bytes. Valid range: 0 bytes - 29540067584 bytes.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 1790.26 MiB for execution context memory.
+[TensorRT-LLM][INFO] gatherContextLogits: 0
+[TensorRT-LLM][INFO] gatherGenerationLogits: 0
+[TensorRT-LLM][INFO] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +7042, now: CPU 28171, GPU 7058 (MiB)
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 595.81 KB GPU memory for runtime buffers.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 2.39 MB GPU memory for decoder.
+[TensorRT-LLM][INFO] Memory usage when calculating max tokens in paged kv cache: total: 14.61 GiB, available: 5.82 GiB
+[TensorRT-LLM][INFO] Blocks per window size:
+[TensorRT-LLM][INFO] [windowSize=128] {.primaryBlocks=30, .secondayBlocks=0}
+[TensorRT-LLM][INFO] Max KV cache blocks per sequence: 4 [window size=128], tokens per block=32, primary blocks=30, secondary blocks=0
+[TensorRT-LLM][INFO] Number of tokens per block: 32.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 0.18 GiB for max tokens in paged KV cache (960).
+[TensorRT-LLM][INFO] CacheTransceiver is disabled.
+[10/16/2026-00:42:15] [TRT-LLM] [I] Load engine takes: 132.81996393203735 sec
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+Input [Text 0]: "<|im_start|>system
+You are a helpful assistant.<|im_end|>
+<|im_start|>user
+Explain PCIe bandwidth in one short paragraph.<|im_end|>
+<|im_start|>assistant
+"
+Output [Text 0 Beam 0]: "PCIe (Peripheral Component Interconnect Express) bandwidth refers to the maximum data transfer"
+[W1016 00:43:41.631113750 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())
+WALL=259.384 sec | USER=119.841 sec | SYS=97.734 sec
+
+========== GPU WEIGHTS 0.275 / RUN 1 ==========
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:63: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[TensorRT-LLM] TensorRT LLM version: 1.1.0
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Using C++ session
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[10/16/2026-00:44:21] [TRT-LLM] [W] Implicitly setting QWenConfig.seq_length = 8192
+[10/16/2026-00:44:21] [TRT-LLM] [W] Implicitly setting QWenConfig.qwen_type = qwen2
+[10/16/2026-00:44:21] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_intermediate_size = 0
+[10/16/2026-00:44:21] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_shared_expert_intermediate_size = 0
+[10/16/2026-00:44:21] [TRT-LLM] [W] Implicitly setting QWenConfig.tie_word_embeddings = False
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set dtype to float16.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set bert_attention_plugin to auto.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set gpt_attention_plugin to float16.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set gemm_plugin to None.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set explicitly_disable_gemm_plugin to True.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set gemm_swiglu_plugin to None.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set fp8_rowwise_gemm_plugin to None.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set qserve_gemm_plugin to None.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set identity_plugin to None.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set nccl_plugin to None.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set lora_plugin to None.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set dora_plugin to False.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set weight_only_groupwise_quant_matmul_plugin to None.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set weight_only_quant_matmul_plugin to None.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set smooth_quant_plugins to True.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set smooth_quant_gemm_plugin to None.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set layernorm_quantization_plugin to None.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set rmsnorm_quantization_plugin to None.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set quantize_per_token_plugin to False.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set quantize_tensor_plugin to False.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set moe_plugin to auto.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set mamba_conv1d_plugin to auto.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set low_latency_gemm_plugin to None.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set low_latency_gemm_swiglu_plugin to None.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set gemm_allreduce_plugin to None.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set context_fmha to True.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set bert_context_fmha_fp32_acc to False.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set paged_kv_cache to True.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set remove_input_padding to True.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set norm_quant_fusion to False.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set reduce_fusion to False.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set user_buffer to False.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set tokens_per_block to 32.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set use_paged_context_fmha to True.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set use_fp8_context_fmha to False.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set fuse_fp4_quant to False.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set multiple_profiles to False.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set paged_state to False.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set streamingllm to False.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set manage_weights to False.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set use_fused_mlp to False.
+[10/16/2026-00:44:21] [TRT-LLM] [I] Set pp_reduce_scatter to False.
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[TensorRT-LLM][INFO] Rank 0 is using GPU 0
+[TensorRT-LLM][INFO] TRTGptModel maxNumSequences: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBatchSize: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBeamWidth: 1
+[TensorRT-LLM][INFO] TRTGptModel maxSequenceLen: 128
+[TensorRT-LLM][INFO] TRTGptModel maxDraftLen: 0
+[TensorRT-LLM][INFO] TRTGptModel mMaxAttentionWindowSize: (128) * 48
+[TensorRT-LLM][INFO] TRTGptModel enableTrtOverlap: 0
+[TensorRT-LLM][INFO] TRTGptModel normalizeLogProbs: 1
+[TensorRT-LLM][INFO] TRTGptModel maxNumTokens: 64
+[TensorRT-LLM][INFO] TRTGptModel maxInputLen: 64 = min(maxSequenceLen - 1, maxNumTokens) since context FMHA and usePackedInput are enabled
+[TensorRT-LLM][INFO] TRTGptModel If model type is encoder, maxInputLen would be reset in trtEncoderModel to maxInputLen: min(maxSequenceLen, maxNumTokens).
+[TensorRT-LLM][INFO] Capacity Scheduler Policy: GUARANTEED_NO_EVICT
+[TensorRT-LLM][INFO] Context Chunking Scheduler Policy: None
+[TensorRT-LLM][INFO] Loaded engine size: 28203 MiB
+[TensorRT-LLM][INFO] This engine can stream its weights. Please use setWeightStreamingBudgetV2() to enable it during execution.
+[TensorRT-LLM][INFO] - Minimum budget: 0 bytes
+[TensorRT-LLM][INFO] - Maximum budget: 29540067584 bytes
+[TensorRT-LLM][INFO] Engine load time 112105 ms
+[TensorRT-LLM][INFO] Inspecting the engine to identify potential runtime issues...
+[TensorRT-LLM][INFO] The profiling verbosity of the engine does not allow this analysis to proceed. Re-build the engine with 'detailed' profiling verbosity to get more diagnostics.
+[TensorRT-LLM][INFO] Set gpu weights percent to 0.275000, which is 8123518464 bytes. Valid range: 0 bytes - 29540067584 bytes.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 1790.26 MiB for execution context memory.
+[TensorRT-LLM][INFO] gatherContextLogits: 0
+[TensorRT-LLM][INFO] gatherGenerationLogits: 0
+[TensorRT-LLM][INFO] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +7747, now: CPU 28171, GPU 7763 (MiB)
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 595.81 KB GPU memory for runtime buffers.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 2.39 MB GPU memory for decoder.
+[TensorRT-LLM][INFO] Memory usage when calculating max tokens in paged kv cache: total: 14.61 GiB, available: 5.13 GiB
+[TensorRT-LLM][INFO] Blocks per window size:
+[TensorRT-LLM][INFO] [windowSize=128] {.primaryBlocks=27, .secondayBlocks=0}
+[TensorRT-LLM][INFO] Max KV cache blocks per sequence: 4 [window size=128], tokens per block=32, primary blocks=27, secondary blocks=0
+[TensorRT-LLM][INFO] Number of tokens per block: 32.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 0.16 GiB for max tokens in paged KV cache (864).
+[TensorRT-LLM][INFO] CacheTransceiver is disabled.
+[10/16/2026-00:46:29] [TRT-LLM] [I] Load engine takes: 128.1825089454651 sec
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+Input [Text 0]: "<|im_start|>system
+You are a helpful assistant.<|im_end|>
+<|im_start|>user
+Explain PCIe bandwidth in one short paragraph.<|im_end|>
+<|im_start|>assistant
+"
+Output [Text 0 Beam 0]: "PCIe (Peripheral Component Interconnect Express) bandwidth refers to the maximum data transfer"
+[W1016 00:47:55.473138214 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())
+WALL=254.018 sec | USER=120.315 sec | SYS=93.093 sec
+
+========== GPU WEIGHTS 0.275 / RUN 2 ==========
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:63: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[TensorRT-LLM] TensorRT LLM version: 1.1.0
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Using C++ session
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[10/16/2026-00:48:36] [TRT-LLM] [W] Implicitly setting QWenConfig.seq_length = 8192
+[10/16/2026-00:48:36] [TRT-LLM] [W] Implicitly setting QWenConfig.qwen_type = qwen2
+[10/16/2026-00:48:36] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_intermediate_size = 0
+[10/16/2026-00:48:36] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_shared_expert_intermediate_size = 0
+[10/16/2026-00:48:36] [TRT-LLM] [W] Implicitly setting QWenConfig.tie_word_embeddings = False
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set dtype to float16.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set bert_attention_plugin to auto.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set gpt_attention_plugin to float16.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set gemm_plugin to None.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set explicitly_disable_gemm_plugin to True.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set gemm_swiglu_plugin to None.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set fp8_rowwise_gemm_plugin to None.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set qserve_gemm_plugin to None.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set identity_plugin to None.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set nccl_plugin to None.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set lora_plugin to None.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set dora_plugin to False.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set weight_only_groupwise_quant_matmul_plugin to None.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set weight_only_quant_matmul_plugin to None.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set smooth_quant_plugins to True.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set smooth_quant_gemm_plugin to None.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set layernorm_quantization_plugin to None.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set rmsnorm_quantization_plugin to None.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set quantize_per_token_plugin to False.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set quantize_tensor_plugin to False.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set moe_plugin to auto.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set mamba_conv1d_plugin to auto.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set low_latency_gemm_plugin to None.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set low_latency_gemm_swiglu_plugin to None.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set gemm_allreduce_plugin to None.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set context_fmha to True.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set bert_context_fmha_fp32_acc to False.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set paged_kv_cache to True.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set remove_input_padding to True.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set norm_quant_fusion to False.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set reduce_fusion to False.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set user_buffer to False.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set tokens_per_block to 32.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set use_paged_context_fmha to True.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set use_fp8_context_fmha to False.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set fuse_fp4_quant to False.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set multiple_profiles to False.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set paged_state to False.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set streamingllm to False.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set manage_weights to False.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set use_fused_mlp to False.
+[10/16/2026-00:48:36] [TRT-LLM] [I] Set pp_reduce_scatter to False.
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[TensorRT-LLM][INFO] Rank 0 is using GPU 0
+[TensorRT-LLM][INFO] TRTGptModel maxNumSequences: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBatchSize: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBeamWidth: 1
+[TensorRT-LLM][INFO] TRTGptModel maxSequenceLen: 128
+[TensorRT-LLM][INFO] TRTGptModel maxDraftLen: 0
+[TensorRT-LLM][INFO] TRTGptModel mMaxAttentionWindowSize: (128) * 48
+[TensorRT-LLM][INFO] TRTGptModel enableTrtOverlap: 0
+[TensorRT-LLM][INFO] TRTGptModel normalizeLogProbs: 1
+[TensorRT-LLM][INFO] TRTGptModel maxNumTokens: 64
+[TensorRT-LLM][INFO] TRTGptModel maxInputLen: 64 = min(maxSequenceLen - 1, maxNumTokens) since context FMHA and usePackedInput are enabled
+[TensorRT-LLM][INFO] TRTGptModel If model type is encoder, maxInputLen would be reset in trtEncoderModel to maxInputLen: min(maxSequenceLen, maxNumTokens).
+[TensorRT-LLM][INFO] Capacity Scheduler Policy: GUARANTEED_NO_EVICT
+[TensorRT-LLM][INFO] Context Chunking Scheduler Policy: None
+[TensorRT-LLM][INFO] Loaded engine size: 28203 MiB
+[TensorRT-LLM][INFO] This engine can stream its weights. Please use setWeightStreamingBudgetV2() to enable it during execution.
+[TensorRT-LLM][INFO] - Minimum budget: 0 bytes
+[TensorRT-LLM][INFO] - Maximum budget: 29540067584 bytes
+[TensorRT-LLM][INFO] Engine load time 112260 ms
+[TensorRT-LLM][INFO] Inspecting the engine to identify potential runtime issues...
+[TensorRT-LLM][INFO] The profiling verbosity of the engine does not allow this analysis to proceed. Re-build the engine with 'detailed' profiling verbosity to get more diagnostics.
+[TensorRT-LLM][INFO] Set gpu weights percent to 0.275000, which is 8123518464 bytes. Valid range: 0 bytes - 29540067584 bytes.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 1790.26 MiB for execution context memory.
+[TensorRT-LLM][INFO] gatherContextLogits: 0
+[TensorRT-LLM][INFO] gatherGenerationLogits: 0
+[TensorRT-LLM][INFO] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +7747, now: CPU 28171, GPU 7763 (MiB)
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 595.81 KB GPU memory for runtime buffers.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 2.39 MB GPU memory for decoder.
+[TensorRT-LLM][INFO] Memory usage when calculating max tokens in paged kv cache: total: 14.61 GiB, available: 5.13 GiB
+[TensorRT-LLM][INFO] Blocks per window size:
+[TensorRT-LLM][INFO] [windowSize=128] {.primaryBlocks=27, .secondayBlocks=0}
+[TensorRT-LLM][INFO] Max KV cache blocks per sequence: 4 [window size=128], tokens per block=32, primary blocks=27, secondary blocks=0
+[TensorRT-LLM][INFO] Number of tokens per block: 32.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 0.16 GiB for max tokens in paged KV cache (864).
+[TensorRT-LLM][INFO] CacheTransceiver is disabled.
+[10/16/2026-00:50:44] [TRT-LLM] [I] Load engine takes: 128.07679629325867 sec
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+Input [Text 0]: "<|im_start|>system
+You are a helpful assistant.<|im_end|>
+<|im_start|>user
+Explain PCIe bandwidth in one short paragraph.<|im_end|>
+<|im_start|>assistant
+"
+Output [Text 0 Beam 0]: "PCIe (Peripheral Component Interconnect Express) bandwidth refers to the maximum data transfer"
+[W1016 00:52:09.564173694 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())
+WALL=254.191 sec | USER=118.144 sec | SYS=94.781 sec
+
+========== GPU WEIGHTS 0.30 / RUN 1 ==========
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:63: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[TensorRT-LLM] TensorRT LLM version: 1.1.0
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Using C++ session
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[10/16/2026-00:52:51] [TRT-LLM] [W] Implicitly setting QWenConfig.seq_length = 8192
+[10/16/2026-00:52:51] [TRT-LLM] [W] Implicitly setting QWenConfig.qwen_type = qwen2
+[10/16/2026-00:52:51] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_intermediate_size = 0
+[10/16/2026-00:52:51] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_shared_expert_intermediate_size = 0
+[10/16/2026-00:52:51] [TRT-LLM] [W] Implicitly setting QWenConfig.tie_word_embeddings = False
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set dtype to float16.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set bert_attention_plugin to auto.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set gpt_attention_plugin to float16.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set gemm_plugin to None.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set explicitly_disable_gemm_plugin to True.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set gemm_swiglu_plugin to None.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set fp8_rowwise_gemm_plugin to None.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set qserve_gemm_plugin to None.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set identity_plugin to None.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set nccl_plugin to None.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set lora_plugin to None.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set dora_plugin to False.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set weight_only_groupwise_quant_matmul_plugin to None.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set weight_only_quant_matmul_plugin to None.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set smooth_quant_plugins to True.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set smooth_quant_gemm_plugin to None.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set layernorm_quantization_plugin to None.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set rmsnorm_quantization_plugin to None.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set quantize_per_token_plugin to False.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set quantize_tensor_plugin to False.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set moe_plugin to auto.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set mamba_conv1d_plugin to auto.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set low_latency_gemm_plugin to None.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set low_latency_gemm_swiglu_plugin to None.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set gemm_allreduce_plugin to None.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set context_fmha to True.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set bert_context_fmha_fp32_acc to False.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set paged_kv_cache to True.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set remove_input_padding to True.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set norm_quant_fusion to False.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set reduce_fusion to False.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set user_buffer to False.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set tokens_per_block to 32.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set use_paged_context_fmha to True.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set use_fp8_context_fmha to False.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set fuse_fp4_quant to False.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set multiple_profiles to False.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set paged_state to False.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set streamingllm to False.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set manage_weights to False.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set use_fused_mlp to False.
+[10/16/2026-00:52:51] [TRT-LLM] [I] Set pp_reduce_scatter to False.
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[TensorRT-LLM][INFO] Rank 0 is using GPU 0
+[TensorRT-LLM][INFO] TRTGptModel maxNumSequences: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBatchSize: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBeamWidth: 1
+[TensorRT-LLM][INFO] TRTGptModel maxSequenceLen: 128
+[TensorRT-LLM][INFO] TRTGptModel maxDraftLen: 0
+[TensorRT-LLM][INFO] TRTGptModel mMaxAttentionWindowSize: (128) * 48
+[TensorRT-LLM][INFO] TRTGptModel enableTrtOverlap: 0
+[TensorRT-LLM][INFO] TRTGptModel normalizeLogProbs: 1
+[TensorRT-LLM][INFO] TRTGptModel maxNumTokens: 64
+[TensorRT-LLM][INFO] TRTGptModel maxInputLen: 64 = min(maxSequenceLen - 1, maxNumTokens) since context FMHA and usePackedInput are enabled
+[TensorRT-LLM][INFO] TRTGptModel If model type is encoder, maxInputLen would be reset in trtEncoderModel to maxInputLen: min(maxSequenceLen, maxNumTokens).
+[TensorRT-LLM][INFO] Capacity Scheduler Policy: GUARANTEED_NO_EVICT
+[TensorRT-LLM][INFO] Context Chunking Scheduler Policy: None
+[TensorRT-LLM][INFO] Loaded engine size: 28203 MiB
+[TensorRT-LLM][INFO] This engine can stream its weights. Please use setWeightStreamingBudgetV2() to enable it during execution.
+[TensorRT-LLM][INFO] - Minimum budget: 0 bytes
+[TensorRT-LLM][INFO] - Maximum budget: 29540067584 bytes
+[TensorRT-LLM][INFO] Engine load time 114829 ms
+[TensorRT-LLM][INFO] Inspecting the engine to identify potential runtime issues...
+[TensorRT-LLM][INFO] The profiling verbosity of the engine does not allow this analysis to proceed. Re-build the engine with 'detailed' profiling verbosity to get more diagnostics.
+[TensorRT-LLM][INFO] Set gpu weights percent to 0.300000, which is 8862020608 bytes. Valid range: 0 bytes - 29540067584 bytes.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 1790.26 MiB for execution context memory.
+[TensorRT-LLM][INFO] gatherContextLogits: 0
+[TensorRT-LLM][INFO] gatherGenerationLogits: 0
+[TensorRT-LLM][INFO] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +8451, now: CPU 28171, GPU 8467 (MiB)
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 595.81 KB GPU memory for runtime buffers.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 2.39 MB GPU memory for decoder.
+[TensorRT-LLM][INFO] Memory usage when calculating max tokens in paged kv cache: total: 14.61 GiB, available: 4.45 GiB
+[TensorRT-LLM][INFO] Blocks per window size:
+[TensorRT-LLM][INFO] [windowSize=128] {.primaryBlocks=23, .secondayBlocks=0}
+[TensorRT-LLM][INFO] Max KV cache blocks per sequence: 4 [window size=128], tokens per block=32, primary blocks=23, secondary blocks=0
+[TensorRT-LLM][INFO] Number of tokens per block: 32.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 0.13 GiB for max tokens in paged KV cache (736).
+[TensorRT-LLM][INFO] CacheTransceiver is disabled.
+[10/16/2026-00:55:02] [TRT-LLM] [I] Load engine takes: 131.06335377693176 sec
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+Input [Text 0]: "<|im_start|>system
+You are a helpful assistant.<|im_end|>
+<|im_start|>user
+Explain PCIe bandwidth in one short paragraph.<|im_end|>
+<|im_start|>assistant
+"
+Output [Text 0 Beam 0]: "PCIe (Peripheral Component Interconnect Express) bandwidth refers to the maximum data transfer"
+[W1016 00:56:27.548218474 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())
+WALL=258.071 sec | USER=122.544 sec | SYS=94.121 sec
+
+========== GPU WEIGHTS 0.30 / RUN 2 ==========
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:63: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[TensorRT-LLM] TensorRT LLM version: 1.1.0
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Using C++ session
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[10/16/2026-00:57:06] [TRT-LLM] [W] Implicitly setting QWenConfig.seq_length = 8192
+[10/16/2026-00:57:06] [TRT-LLM] [W] Implicitly setting QWenConfig.qwen_type = qwen2
+[10/16/2026-00:57:06] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_intermediate_size = 0
+[10/16/2026-00:57:06] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_shared_expert_intermediate_size = 0
+[10/16/2026-00:57:06] [TRT-LLM] [W] Implicitly setting QWenConfig.tie_word_embeddings = False
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set dtype to float16.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set bert_attention_plugin to auto.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set gpt_attention_plugin to float16.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set gemm_plugin to None.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set explicitly_disable_gemm_plugin to True.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set gemm_swiglu_plugin to None.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set fp8_rowwise_gemm_plugin to None.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set qserve_gemm_plugin to None.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set identity_plugin to None.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set nccl_plugin to None.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set lora_plugin to None.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set dora_plugin to False.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set weight_only_groupwise_quant_matmul_plugin to None.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set weight_only_quant_matmul_plugin to None.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set smooth_quant_plugins to True.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set smooth_quant_gemm_plugin to None.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set layernorm_quantization_plugin to None.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set rmsnorm_quantization_plugin to None.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set quantize_per_token_plugin to False.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set quantize_tensor_plugin to False.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set moe_plugin to auto.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set mamba_conv1d_plugin to auto.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set low_latency_gemm_plugin to None.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set low_latency_gemm_swiglu_plugin to None.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set gemm_allreduce_plugin to None.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set context_fmha to True.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set bert_context_fmha_fp32_acc to False.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set paged_kv_cache to True.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set remove_input_padding to True.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set norm_quant_fusion to False.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set reduce_fusion to False.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set user_buffer to False.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set tokens_per_block to 32.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set use_paged_context_fmha to True.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set use_fp8_context_fmha to False.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set fuse_fp4_quant to False.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set multiple_profiles to False.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set paged_state to False.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set streamingllm to False.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set manage_weights to False.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set use_fused_mlp to False.
+[10/16/2026-00:57:06] [TRT-LLM] [I] Set pp_reduce_scatter to False.
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[TensorRT-LLM][INFO] Rank 0 is using GPU 0
+[TensorRT-LLM][INFO] TRTGptModel maxNumSequences: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBatchSize: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBeamWidth: 1
+[TensorRT-LLM][INFO] TRTGptModel maxSequenceLen: 128
+[TensorRT-LLM][INFO] TRTGptModel maxDraftLen: 0
+[TensorRT-LLM][INFO] TRTGptModel mMaxAttentionWindowSize: (128) * 48
+[TensorRT-LLM][INFO] TRTGptModel enableTrtOverlap: 0
+[TensorRT-LLM][INFO] TRTGptModel normalizeLogProbs: 1
+[TensorRT-LLM][INFO] TRTGptModel maxNumTokens: 64
+[TensorRT-LLM][INFO] TRTGptModel maxInputLen: 64 = min(maxSequenceLen - 1, maxNumTokens) since context FMHA and usePackedInput are enabled
+[TensorRT-LLM][INFO] TRTGptModel If model type is encoder, maxInputLen would be reset in trtEncoderModel to maxInputLen: min(maxSequenceLen, maxNumTokens).
+[TensorRT-LLM][INFO] Capacity Scheduler Policy: GUARANTEED_NO_EVICT
+[TensorRT-LLM][INFO] Context Chunking Scheduler Policy: None
+[TensorRT-LLM][INFO] Loaded engine size: 28203 MiB
+[TensorRT-LLM][INFO] This engine can stream its weights. Please use setWeightStreamingBudgetV2() to enable it during execution.
+[TensorRT-LLM][INFO] - Minimum budget: 0 bytes
+[TensorRT-LLM][INFO] - Maximum budget: 29540067584 bytes
+[TensorRT-LLM][INFO] Engine load time 109397 ms
+[TensorRT-LLM][INFO] Inspecting the engine to identify potential runtime issues...
+[TensorRT-LLM][INFO] The profiling verbosity of the engine does not allow this analysis to proceed. Re-build the engine with 'detailed' profiling verbosity to get more diagnostics.
+[TensorRT-LLM][INFO] Set gpu weights percent to 0.300000, which is 8862020608 bytes. Valid range: 0 bytes - 29540067584 bytes.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 1790.26 MiB for execution context memory.
+[TensorRT-LLM][INFO] gatherContextLogits: 0
+[TensorRT-LLM][INFO] gatherGenerationLogits: 0
+[TensorRT-LLM][INFO] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +8451, now: CPU 28171, GPU 8467 (MiB)
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 595.81 KB GPU memory for runtime buffers.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 2.39 MB GPU memory for decoder.
+[TensorRT-LLM][INFO] Memory usage when calculating max tokens in paged kv cache: total: 14.61 GiB, available: 4.45 GiB
+[TensorRT-LLM][INFO] Blocks per window size:
+[TensorRT-LLM][INFO] [windowSize=128] {.primaryBlocks=23, .secondayBlocks=0}
+[TensorRT-LLM][INFO] Max KV cache blocks per sequence: 4 [window size=128], tokens per block=32, primary blocks=23, secondary blocks=0
+[TensorRT-LLM][INFO] Number of tokens per block: 32.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 0.13 GiB for max tokens in paged KV cache (736).
+[TensorRT-LLM][INFO] CacheTransceiver is disabled.
+[10/16/2026-00:59:11] [TRT-LLM] [I] Load engine takes: 124.8648989200592 sec
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+Input [Text 0]: "<|im_start|>system
+You are a helpful assistant.<|im_end|>
+<|im_start|>user
+Explain PCIe bandwidth in one short paragraph.<|im_end|>
+<|im_start|>assistant
+"
+Output [Text 0 Beam 0]: "PCIe (Peripheral Component Interconnect Express) bandwidth refers to the maximum data transfer"
+[W1016 01:00:36.778359652 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())
+WALL=248.693 sec | USER=116.309 sec | SYS=91.839 sec
+
+========== GPU WEIGHTS 0.325 / RUN 1 ==========
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:63: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[TensorRT-LLM] TensorRT LLM version: 1.1.0
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Using C++ session
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[10/16/2026-01:01:15] [TRT-LLM] [W] Implicitly setting QWenConfig.seq_length = 8192
+[10/16/2026-01:01:15] [TRT-LLM] [W] Implicitly setting QWenConfig.qwen_type = qwen2
+[10/16/2026-01:01:15] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_intermediate_size = 0
+[10/16/2026-01:01:15] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_shared_expert_intermediate_size = 0
+[10/16/2026-01:01:15] [TRT-LLM] [W] Implicitly setting QWenConfig.tie_word_embeddings = False
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set dtype to float16.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set bert_attention_plugin to auto.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set gpt_attention_plugin to float16.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set gemm_plugin to None.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set explicitly_disable_gemm_plugin to True.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set gemm_swiglu_plugin to None.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set fp8_rowwise_gemm_plugin to None.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set qserve_gemm_plugin to None.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set identity_plugin to None.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set nccl_plugin to None.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set lora_plugin to None.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set dora_plugin to False.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set weight_only_groupwise_quant_matmul_plugin to None.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set weight_only_quant_matmul_plugin to None.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set smooth_quant_plugins to True.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set smooth_quant_gemm_plugin to None.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set layernorm_quantization_plugin to None.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set rmsnorm_quantization_plugin to None.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set quantize_per_token_plugin to False.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set quantize_tensor_plugin to False.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set moe_plugin to auto.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set mamba_conv1d_plugin to auto.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set low_latency_gemm_plugin to None.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set low_latency_gemm_swiglu_plugin to None.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set gemm_allreduce_plugin to None.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set context_fmha to True.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set bert_context_fmha_fp32_acc to False.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set paged_kv_cache to True.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set remove_input_padding to True.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set norm_quant_fusion to False.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set reduce_fusion to False.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set user_buffer to False.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set tokens_per_block to 32.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set use_paged_context_fmha to True.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set use_fp8_context_fmha to False.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set fuse_fp4_quant to False.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set multiple_profiles to False.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set paged_state to False.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set streamingllm to False.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set manage_weights to False.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set use_fused_mlp to False.
+[10/16/2026-01:01:15] [TRT-LLM] [I] Set pp_reduce_scatter to False.
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[TensorRT-LLM][INFO] Rank 0 is using GPU 0
+[TensorRT-LLM][INFO] TRTGptModel maxNumSequences: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBatchSize: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBeamWidth: 1
+[TensorRT-LLM][INFO] TRTGptModel maxSequenceLen: 128
+[TensorRT-LLM][INFO] TRTGptModel maxDraftLen: 0
+[TensorRT-LLM][INFO] TRTGptModel mMaxAttentionWindowSize: (128) * 48
+[TensorRT-LLM][INFO] TRTGptModel enableTrtOverlap: 0
+[TensorRT-LLM][INFO] TRTGptModel normalizeLogProbs: 1
+[TensorRT-LLM][INFO] TRTGptModel maxNumTokens: 64
+[TensorRT-LLM][INFO] TRTGptModel maxInputLen: 64 = min(maxSequenceLen - 1, maxNumTokens) since context FMHA and usePackedInput are enabled
+[TensorRT-LLM][INFO] TRTGptModel If model type is encoder, maxInputLen would be reset in trtEncoderModel to maxInputLen: min(maxSequenceLen, maxNumTokens).
+[TensorRT-LLM][INFO] Capacity Scheduler Policy: GUARANTEED_NO_EVICT
+[TensorRT-LLM][INFO] Context Chunking Scheduler Policy: None
+[TensorRT-LLM][INFO] Loaded engine size: 28203 MiB
+[TensorRT-LLM][INFO] This engine can stream its weights. Please use setWeightStreamingBudgetV2() to enable it during execution.
+[TensorRT-LLM][INFO] - Minimum budget: 0 bytes
+[TensorRT-LLM][INFO] - Maximum budget: 29540067584 bytes
+[TensorRT-LLM][INFO] Engine load time 119265 ms
+[TensorRT-LLM][INFO] Inspecting the engine to identify potential runtime issues...
+[TensorRT-LLM][INFO] The profiling verbosity of the engine does not allow this analysis to proceed. Re-build the engine with 'detailed' profiling verbosity to get more diagnostics.
+[TensorRT-LLM][INFO] Set gpu weights percent to 0.325000, which is 9600521216 bytes. Valid range: 0 bytes - 29540067584 bytes.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 1790.26 MiB for execution context memory.
+[TensorRT-LLM][INFO] gatherContextLogits: 0
+[TensorRT-LLM][INFO] gatherGenerationLogits: 0
+[TensorRT-LLM][INFO] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +9155, now: CPU 28171, GPU 9171 (MiB)
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 595.81 KB GPU memory for runtime buffers.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 2.39 MB GPU memory for decoder.
+[TensorRT-LLM][INFO] Memory usage when calculating max tokens in paged kv cache: total: 14.61 GiB, available: 3.76 GiB
+[TensorRT-LLM][INFO] Blocks per window size:
+[TensorRT-LLM][INFO] [windowSize=128] {.primaryBlocks=20, .secondayBlocks=0}
+[TensorRT-LLM][INFO] Max KV cache blocks per sequence: 4 [window size=128], tokens per block=32, primary blocks=20, secondary blocks=0
+[TensorRT-LLM][INFO] Number of tokens per block: 32.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 0.12 GiB for max tokens in paged KV cache (640).
+[TensorRT-LLM][INFO] CacheTransceiver is disabled.
+[10/16/2026-01:03:31] [TRT-LLM] [I] Load engine takes: 135.7576982975006 sec
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+Input [Text 0]: "<|im_start|>system
+You are a helpful assistant.<|im_end|>
+<|im_start|>user
+Explain PCIe bandwidth in one short paragraph.<|im_end|>
+<|im_start|>assistant
+"
+Output [Text 0 Beam 0]: "PCIe (Peripheral Component Interconnect Express) bandwidth refers to the maximum data transfer"
+[W1016 01:04:56.950723720 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())
+WALL=260.508 sec | USER=119.734 sec | SYS=92.865 sec
+
+========== GPU WEIGHTS 0.325 / RUN 2 ==========
+/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py:63: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+[TensorRT-LLM] TensorRT LLM version: 1.1.0
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Using C++ session
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[10/16/2026-01:05:35] [TRT-LLM] [W] Implicitly setting QWenConfig.seq_length = 8192
+[10/16/2026-01:05:35] [TRT-LLM] [W] Implicitly setting QWenConfig.qwen_type = qwen2
+[10/16/2026-01:05:35] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_intermediate_size = 0
+[10/16/2026-01:05:35] [TRT-LLM] [W] Implicitly setting QWenConfig.moe_shared_expert_intermediate_size = 0
+[10/16/2026-01:05:35] [TRT-LLM] [W] Implicitly setting QWenConfig.tie_word_embeddings = False
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set dtype to float16.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set bert_attention_plugin to auto.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set gpt_attention_plugin to float16.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set gemm_plugin to None.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set explicitly_disable_gemm_plugin to True.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set gemm_swiglu_plugin to None.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set fp8_rowwise_gemm_plugin to None.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set qserve_gemm_plugin to None.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set identity_plugin to None.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set nccl_plugin to None.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set lora_plugin to None.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set dora_plugin to False.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set weight_only_groupwise_quant_matmul_plugin to None.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set weight_only_quant_matmul_plugin to None.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set smooth_quant_plugins to True.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set smooth_quant_gemm_plugin to None.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set layernorm_quantization_plugin to None.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set rmsnorm_quantization_plugin to None.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set quantize_per_token_plugin to False.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set quantize_tensor_plugin to False.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set moe_plugin to auto.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set mamba_conv1d_plugin to auto.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set low_latency_gemm_plugin to None.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set low_latency_gemm_swiglu_plugin to None.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set gemm_allreduce_plugin to None.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set context_fmha to True.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set bert_context_fmha_fp32_acc to False.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set paged_kv_cache to True.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set remove_input_padding to True.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set norm_quant_fusion to False.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set reduce_fusion to False.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set user_buffer to False.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set tokens_per_block to 32.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set use_paged_context_fmha to True.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set use_fp8_context_fmha to False.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set fuse_fp4_quant to False.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set multiple_profiles to False.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set paged_state to False.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set streamingllm to False.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set manage_weights to False.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set use_fused_mlp to False.
+[10/16/2026-01:05:35] [TRT-LLM] [I] Set pp_reduce_scatter to False.
+[TensorRT-LLM][INFO] Engine version 1.1.0 found in the config file, assuming engine(s) built by new builder API.
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+[TensorRT-LLM][INFO] MPI size: 1, MPI local size: 1, rank: 0
+[TensorRT-LLM][INFO] Rank 0 is using GPU 0
+[TensorRT-LLM][INFO] TRTGptModel maxNumSequences: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBatchSize: 1
+[TensorRT-LLM][INFO] TRTGptModel maxBeamWidth: 1
+[TensorRT-LLM][INFO] TRTGptModel maxSequenceLen: 128
+[TensorRT-LLM][INFO] TRTGptModel maxDraftLen: 0
+[TensorRT-LLM][INFO] TRTGptModel mMaxAttentionWindowSize: (128) * 48
+[TensorRT-LLM][INFO] TRTGptModel enableTrtOverlap: 0
+[TensorRT-LLM][INFO] TRTGptModel normalizeLogProbs: 1
+[TensorRT-LLM][INFO] TRTGptModel maxNumTokens: 64
+[TensorRT-LLM][INFO] TRTGptModel maxInputLen: 64 = min(maxSequenceLen - 1, maxNumTokens) since context FMHA and usePackedInput are enabled
+[TensorRT-LLM][INFO] TRTGptModel If model type is encoder, maxInputLen would be reset in trtEncoderModel to maxInputLen: min(maxSequenceLen, maxNumTokens).
+[TensorRT-LLM][INFO] Capacity Scheduler Policy: GUARANTEED_NO_EVICT
+[TensorRT-LLM][INFO] Context Chunking Scheduler Policy: None
+[TensorRT-LLM][INFO] Loaded engine size: 28203 MiB
+[TensorRT-LLM][INFO] This engine can stream its weights. Please use setWeightStreamingBudgetV2() to enable it during execution.
+[TensorRT-LLM][INFO] - Minimum budget: 0 bytes
+[TensorRT-LLM][INFO] - Maximum budget: 29540067584 bytes
+[TensorRT-LLM][INFO] Engine load time 120567 ms
+[TensorRT-LLM][INFO] Inspecting the engine to identify potential runtime issues...
+[TensorRT-LLM][INFO] The profiling verbosity of the engine does not allow this analysis to proceed. Re-build the engine with 'detailed' profiling verbosity to get more diagnostics.
+[TensorRT-LLM][INFO] Set gpu weights percent to 0.325000, which is 9600521216 bytes. Valid range: 0 bytes - 29540067584 bytes.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 1790.26 MiB for execution context memory.
+[TensorRT-LLM][INFO] gatherContextLogits: 0
+[TensorRT-LLM][INFO] gatherGenerationLogits: 0
+[TensorRT-LLM][INFO] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +9155, now: CPU 28171, GPU 9171 (MiB)
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 595.81 KB GPU memory for runtime buffers.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 2.39 MB GPU memory for decoder.
+[TensorRT-LLM][INFO] Memory usage when calculating max tokens in paged kv cache: total: 14.61 GiB, available: 3.76 GiB
+[TensorRT-LLM][INFO] Blocks per window size:
+[TensorRT-LLM][INFO] [windowSize=128] {.primaryBlocks=20, .secondayBlocks=0}
+[TensorRT-LLM][INFO] Max KV cache blocks per sequence: 4 [window size=128], tokens per block=32, primary blocks=20, secondary blocks=0
+[TensorRT-LLM][INFO] Number of tokens per block: 32.
+[TensorRT-LLM][INFO] [MemUsageChange] Allocated 0.12 GiB for max tokens in paged KV cache (640).
+[TensorRT-LLM][INFO] CacheTransceiver is disabled.
+[10/16/2026-01:07:50] [TRT-LLM] [I] Load engine takes: 134.98579907417297 sec
+[TensorRT-LLM][INFO] Refreshed the MPI local session
+Input [Text 0]: "<|im_start|>system
+You are a helpful assistant.<|im_end|>
+<|im_start|>user
+Explain PCIe bandwidth in one short paragraph.<|im_end|>
+<|im_start|>assistant
+"
+Output [Text 0 Beam 0]: "PCIe (Peripheral Component Interconnect Express) bandwidth refers to the maximum data transfer"
+[W1016 01:09:12.150837566 AllocatorConfig.cpp:28] Warning: PYTORCH_CUDA_ALLOC_CONF is deprecated, use PYTORCH_ALLOC_CONF instead (function operator())
+WALL=253.359 sec | USER=120.185 sec | SYS=90.001 sec

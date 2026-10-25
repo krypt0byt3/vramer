@@ -1,0 +1,72 @@
+{
+  "vramer_plan_version": 1,
+  "vramer_version": "0.1.0",
+  "model": {
+    "path": "/workspace/vramer/models/Qwen2.5-14B-Instruct",
+    "exists": true,
+    "type": "huggingface",
+    "format": "safetensors",
+    "backend_hint": "tensorrt_llm",
+    "ternary": false,
+    "size_bytes": 29540134000,
+    "size_gib": 27.511,
+    "files": [
+      "/workspace/vramer/models/Qwen2.5-14B-Instruct/model-00008-of-00008.safetensors",
+      "/workspace/vramer/models/Qwen2.5-14B-Instruct/model-00007-of-00008.safetensors",
+      "/workspace/vramer/models/Qwen2.5-14B-Instruct/model-00005-of-00008.safetensors",
+      "/workspace/vramer/models/Qwen2.5-14B-Instruct/model-00004-of-00008.safetensors",
+      "/workspace/vramer/models/Qwen2.5-14B-Instruct/model-00002-of-00008.safetensors",
+      "/workspace/vramer/models/Qwen2.5-14B-Instruct/model-00001-of-00008.safetensors",
+      "/workspace/vramer/models/Qwen2.5-14B-Instruct/model-00006-of-00008.safetensors",
+      "/workspace/vramer/models/Qwen2.5-14B-Instruct/model-00003-of-00008.safetensors"
+    ]
+  },
+  "backend": "tensorrt_llm",
+  "hardware": {
+    "selected_gpu_ids": [
+      0,
+      1
+    ],
+    "gpu_count": 2,
+    "p2p_complete": false,
+    "fast_gpu_link": false,
+    "gpus": [
+      {
+        "index": 0,
+        "total_gib": 15.0,
+        "free_gib": 14.6,
+        "reserve_gib": 1.5,
+        "usable_weight_gib": 13.5
+      },
+      {
+        "index": 1,
+        "total_gib": 15.0,
+        "free_gib": 14.6,
+        "reserve_gib": 1.5,
+        "usable_weight_gib": 13.5
+      }
+    ],
+    "host_memory": {
+      "total_gib": 62.79,
+      "reserve_gib": 12.56,
+      "usable_gib": 50.23
+    }
+  },
+  "parallel": {
+    "tp": 1,
+    "pp": 2,
+    "strategy": "pipeline_parallel",
+    "reason": "Direct GPU peer access is incomplete or no fast GPU interconnect was detected."
+  },
+  "memory": {
+    "residency": {
+      "fraction": 0.8,
+      "percent": 80.0,
+      "resident_gib": 22.01,
+      "overflow_gib": 5.5,
+      "gpu_capacity_gib": 27.0
+    },
+    "host_overflow_fits": true
+  },
+  "status": "ready"
+}

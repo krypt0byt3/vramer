@@ -1,0 +1,83 @@
+{
+  "vramer_profile_version": 1,
+  "vramer_version": "0.1.0",
+  "timestamp": "2026-10-16T04:37:35.497737+00:00",
+  "host": {
+    "hostname": "83bcef6be147",
+    "os": "Linux",
+    "os_release": "7.0.0-38-generic",
+    "machine": "x86_64",
+    "cpu": "x86_64",
+    "logical_cpus": 12,
+    "ram_bytes": 67421356032,
+    "ram_gib": 62.79
+  },
+  "cuda": {
+    "nvidia_smi_available": true
+  },
+  "gpus": [
+    {
+      "index": 0,
+      "name": "NVIDIA A2",
+      "uuid": "GPU-2eb48f1c-bc87-638f-61c8-9e86dc263650",
+      "vram_total_mib": 15356,
+      "vram_free_mib": 14952,
+      "pci_bus_id": "00000000:06:10.0",
+      "pcie_gen_current": "1",
+      "pcie_gen_max": "3",
+      "pcie_width_current": "8",
+      "pcie_width_max": "16",
+      "vram_total_gib": 15.0,
+      "vram_free_gib": 14.6
+    },
+    {
+      "index": 1,
+      "name": "NVIDIA A2",
+      "uuid": "GPU-5bdd589a-e930-27a2-ec36-ae954011b8bc",
+      "vram_total_mib": 15356,
+      "vram_free_mib": 14952,
+      "pci_bus_id": "00000000:06:11.0",
+      "pcie_gen_current": "1",
+      "pcie_gen_max": "3",
+      "pcie_width_current": "8",
+      "pcie_width_max": "16",
+      "vram_total_gib": 15.0,
+      "vram_free_gib": 14.6
+    }
+  ],
+  "topology": {
+    "nvidia_smi_topo": "\u001b[4mGPU0\tGPU1\tCPU Affinity\tNUMA Affinity\tGPU NUMA ID\u001b[0m\nGPU0\t X \tPIX\t0-11\t0\t\tN/A\nGPU1\tPIX\t X \t0-11\t0\t\tN/A\n\nLegend:\n\n  X    = Self\n  SYS  = Connection traversing PCIe as well as the SMP interconnect between NUMA nodes (e.g., QPI/UPI)\n  NODE = Connection traversing PCIe as well as the interconnect between PCIe Host Bridges within a NUMA node\n  PHB  = Connection traversing PCIe as well as a PCIe Host Bridge (typically the CPU)\n  PXB  = Connection traversing multiple PCIe bridges (without traversing the PCIe Host Bridge)\n  PIX  = Connection traversing at most a single PCIe bridge\n  NV#  = Connection traversing a bonded set of # NVLinks",
+    "p2p_read": "\u001b[4mGPU0\tGPU1\t\u001b[0m\n GPU0\tX\tNS\t\n GPU1\tNS\tX\t\n\nLegend:\n\n  X    = Self\n  OK   = Status Ok\n  CNS  = Chipset not supported\n  GNS  = GPU not supported\n  TNS  = Topology not supported\n  NS   = Not supported\n  U    = Unknown",
+    "p2p_write": "\u001b[4mGPU0\tGPU1\t\u001b[0m\n GPU0\tX\tNS\t\n GPU1\tNS\tX\t\n\nLegend:\n\n  X    = Self\n  OK   = Status Ok\n  CNS  = Chipset not supported\n  GNS  = GPU not supported\n  TNS  = Topology not supported\n  NS   = Not supported\n  U    = Unknown"
+  },
+  "summary": {
+    "gpu_count": 2,
+    "total_vram_gib": 30.0,
+    "system_ram_gib": 62.79
+  },
+  "benchmarks": {
+    "host_gpu_bandwidth": {
+      "timestamp": "2026-10-16T04:49:00.651163+00:00",
+      "provider": "pytorch_cuda",
+      "chunk_mib": 256,
+      "iterations": 16,
+      "per_gpu": {
+        "0": {
+          "h2d_gib_s": 5.742,
+          "d2h_gib_s": 6.153
+        },
+        "1": {
+          "h2d_gib_s": 5.689,
+          "d2h_gib_s": 6.082
+        }
+      },
+      "concurrent_h2d": {
+        "per_gpu_gib_s": {
+          "1": 5.75,
+          "0": 5.735
+        },
+        "aggregate_gib_s": 11.471
+      }
+    }
+  }
+}

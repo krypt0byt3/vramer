@@ -1,0 +1,41 @@
+# ---- Large data: never in git ----
+models/
+engine/
+ckpt/
+hf-cache/
+*.safetensors
+*.gguf
+*.bin
+*.pt
+*.pth
+
+# ---- Build artifacts ----
+build/
+*.o
+*.a
+*.so
+*.obj
+
+# ---- Compiled experiment binaries (keep the .cu sources) ----
+a2_dma
+a2_prefetch
+a2_stream
+a2_vram_expand
+p2p_test
+
+# ---- Archives / packaging ----
+*.zip
+*.tar
+*.tar.gz
+
+# ---- Python ----
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ---- Editor / OS ----
+.vscode/
+.idea/
+*.swp
+.DS_Store

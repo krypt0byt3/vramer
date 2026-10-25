@@ -1,0 +1,18 @@
+
+=== A2 RAW PCIe DMA TEST ===
+
+GPU:          1
+Name:         NVIDIA A2
+Buffer:       2048 MiB
+Iterations:   16
+
+Allocating pinned host RAM...
+Allocating real VRAM...
+
+Testing Host -> Device...
+H2D bandwidth: 5.60 GiB/s
+
+Testing Device -> Host...
+D2H bandwidth: 5.99 GiB/s
+
+SUCCESS
