@@ -1,0 +1,61 @@
+--- llama.cpp/src/CMakeLists.txt	2026-10-25 16:51:32.242410084 -0400
++++ llama-vramer/src/CMakeLists.txt	2026-10-25 17:44:22.294125281 -0400
+@@ -49,6 +49,8 @@
+             ${LLAMA_CORE_SOURCES}
+             unicode.h
+             ${LLAMA_MODELS_SOURCES}
++            vramer_llama_hook.cpp
++            vramer_llama_hook.h
+             )
+ 
+ set_target_properties(llama PROPERTIES
+@@ -61,8 +63,13 @@
+ 
+ # exclude non-model sources from unity build
+ set_source_files_properties(${LLAMA_CORE_SOURCES} ../include/llama.h unicode.h
++    vramer_llama_hook.cpp vramer_llama_hook.h
+     PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+ 
++# ---- VRAMER weight-paging hook (fork addition) ----
++set(VRAMER_ROOT "/vramer/.claude/worktrees/agent-ac59b35e28144a9ff/v1/VRAMER_v1")
++find_package(CUDAToolkit REQUIRED)
++
+ configure_file(llama-version.h.in ${CMAKE_CURRENT_BINARY_DIR}/llama-version.h @ONLY)
+ 
+ target_include_directories(llama PRIVATE . ${CMAKE_CURRENT_BINARY_DIR})
+@@ -71,6 +78,10 @@
+ 
+ target_link_libraries(llama PUBLIC ggml)
+ 
++# VRAMER: include dir for vramer/vramer_c.h, and link the static pager lib.
++target_include_directories(llama PRIVATE "${VRAMER_ROOT}/include")
++target_link_libraries(llama PRIVATE "${VRAMER_ROOT}/build/libvramer.a" CUDA::cudart)
++
+ if (BUILD_SHARED_LIBS)
+     set_target_properties(llama PROPERTIES POSITION_INDEPENDENT_CODE ON)
+     target_compile_definitions(llama PRIVATE LLAMA_BUILD)
+--- llama.cpp/src/llama-context.cpp	2026-10-25 16:51:32.244664862 -0400
++++ llama-vramer/src/llama-context.cpp	2026-10-25 17:43:52.629357690 -0400
+@@ -14,6 +14,8 @@
+ #include "llama-sampler.h"
+ #include "llama.h"
+ 
++#include "vramer_llama_hook.h"
++
+ #include <cinttypes>
+ #include <cmath>
+ #include <cstring>
+@@ -2780,6 +2782,13 @@
+ bool llama_context::sched_copy_experts(ggml_backend_t backend, const ggml_tensor * src, ggml_tensor * dst, ggml_cgraph * graph, void * user_data) {
+     auto * lctx = static_cast<llama_context *>(user_data);
+ 
++    // VRAMER weight paging (no-op unless env VRAMER_GGUF is set): serve this
++    // host weight's bytes from the GGUF through a fixed VRAM budget instead of a
++    // plain H2D copy. See src/vramer_llama_hook.cpp.
++    if (vramer_llama_copy_hook(backend, src, dst)) {
++        return true;
++    }
++
+     // the slot maps of the MoE cache
+     if (lctx->moe_cache && lctx->moe_cache->copy(backend, src, dst, graph)) {
+         return true;
