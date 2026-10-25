@@ -1,7 +1,7 @@
 {
   "schema": "vramer-hw-profile/1",
   "vramer_version": "0.2.0",
-  "timestamp": "2026-10-25T22:35:18.986474+00:00",
+  "timestamp": "2026-10-25T22:41:08.313153+00:00",
   "host": {
     "hostname": "Nexus",
     "os": "Linux",
@@ -25,9 +25,9 @@
       "numa_node": -1,
       "nvlink_peers": [],
       "nvlink_gibs": 0.0,
-      "h2d_pageable_gibs": 0.0,
-      "h2d_pinned_gibs": 0.0,
-      "d2h_pinned_gibs": 0.0
+      "h2d_pageable_gibs": 5.4,
+      "h2d_pinned_gibs": 5.7,
+      "d2h_pinned_gibs": 6.1
     },
     {
       "index": 1,
@@ -42,9 +42,9 @@
       "numa_node": -1,
       "nvlink_peers": [],
       "nvlink_gibs": 0.0,
-      "h2d_pageable_gibs": 0.0,
-      "h2d_pinned_gibs": 0.0,
-      "d2h_pinned_gibs": 0.0
+      "h2d_pageable_gibs": 4.4,
+      "h2d_pinned_gibs": 5.8,
+      "d2h_pinned_gibs": 6.1
     }
   ]
 }
