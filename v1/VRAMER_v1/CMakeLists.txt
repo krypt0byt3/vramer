@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(VRAMER VERSION 1.0.0 LANGUAGES CXX CUDA)
+project(VRAMER VERSION 1.0.0 LANGUAGES C CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,6 +22,7 @@ find_package(Threads REQUIRED)
 add_library(vramer STATIC
   src/memory_source.cpp
   src/cuda_pager.cu
+  src/vramer_c.cpp
 )
 
 target_include_directories(vramer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -48,4 +49,9 @@ if(VRAMER_BUILD_TESTS)
   add_executable(test_pager_concurrency tests/test_pager_concurrency.cu)
   target_link_libraries(test_pager_concurrency PRIVATE vramer CUDA::cudart Threads::Threads)
   add_test(NAME pager_concurrency COMMAND test_pager_concurrency)
+
+  add_executable(test_c_api tests/test_c_api.c)
+  target_link_libraries(test_c_api PRIVATE vramer CUDA::cudart)
+  set_target_properties(test_c_api PROPERTIES LINKER_LANGUAGE CXX)
+  add_test(NAME c_api COMMAND test_c_api)
 endif()

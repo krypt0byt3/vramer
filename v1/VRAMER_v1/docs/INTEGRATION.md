@@ -68,11 +68,15 @@ tiers and out-of-core, exposed through one uniform byte interface.
 ## The FFI reality
 
 Engines are Python (vLLM, TRT-LLM) or C++ (llama.cpp); VRAMER is C++/CUDA.
-A thin **C ABI** (`vramer_pager_create / acquire / release / prefetch / stats`)
-is the right boundary — it lets vLLM bind via ctypes/pybind and lets a future
-Rust engine (candle / mistral.rs) bind via `cudarc` + FFI without a rewrite.
-This is v1.1 target #5. Keep the GPU pointer (`lease.device_ptr()`) as the
-currency crossing the boundary; never copy tensors across the FFI line.
+A thin **C ABI** is the right boundary, and it now ships: `include/vramer/vramer_c.h`
+(`vramer_pager_create / vramer_acquire / vramer_lease_wait_on /
+vramer_lease_release_on / vramer_pager_prefetch_async / vramer_pager_stats`).
+It uses opaque handles, an error-code convention (no C++ exception crosses the
+boundary), and passes CUDA streams as `void*` so the header needs no CUDA
+include. vLLM binds it via ctypes/pybind; a Rust engine (candle / mistral.rs)
+binds it via `cudarc` + FFI. The currency crossing the boundary is the GPU
+pointer from `vramer_acquire` (`out_devptr`) — never copy tensors across the
+FFI line.
 
 ## Recommended sequencing
 

@@ -80,6 +80,9 @@ a device-wide synchronization on the normal path.
   capacity-bounded queue and resident-page dedup (never thrashes the cache)
 - **telemetry**: demand hit rate, prefetch count, source-read time, stall time,
   H2D bytes/rate, and a one-time warning if `release_on()` is omitted
+- **multi-GPU independent caches** — one cache/stream/staging ring per GPU,
+  driven concurrently (`bench --gpus 0,1`); ~2× aggregate H2D on 2× A2
+- a **C ABI** (`vramer_c.h`) for Python/Rust bindings without a C++ toolchain
 - `detect`, `plan`, and `bench` CLI commands
 - PCI BDF + NUMA-node reporting
 - no Unified Memory / `cudaMallocManaged()` dependency
@@ -226,17 +229,28 @@ access and multi-GPU, where one demand thread cannot pipeline far enough ahead.
 
 ## v1.1 targets
 
-Done in this release: lock-free source reads (#1 below, with the coalescing
-hazard handled — waiters block on `load_cv_` until the real H2D records
-`load_done`, never on a stale pre-completed event) and scan-aware MRU eviction.
+Done in this release:
+- lock-free source reads (coalescing hazard handled — waiters block on
+  `load_cv_` until the real H2D records `load_done`, never on a stale event);
+- scan-aware MRU eviction;
+- multi-GPU independent caches — each GPU gets its own cache, transfer stream,
+  and staging ring; `vramer bench --gpus 0,1` drives them concurrently. Measured
+  on 2× A2: ~5.5 GiB/s each → **10.9 GiB/s aggregate** (clean ~2× scaling, no
+  host-bandwidth contention);
+- a **C ABI** (`include/vramer/vramer_c.h`) so Python (ctypes) and Rust (FFI /
+  `cudarc`) can drive the pager without C++ — opaque handles, error-code
+  convention, no exceptions across the boundary, CUDA streams passed as `void*`.
+
 Remaining:
 
-1. multi-GPU independent caches and transfer streams
-2. topology-aware automatic NUMA binding / source allocation
-3. a C ABI so Rust/Python engines can bind the pager (see `docs/INTEGRATION.md`)
-4. predictive layer-order prefetch (feed the real layer schedule to the worker)
-5. llama.cpp weight-paging adapter, then a vLLM KV-connector experiment
-6. TensorRT-LLM adapter
+1. topology-aware automatic NUMA binding / source allocation
+2. predictive layer-order prefetch (feed the real layer schedule to the worker)
+3. llama.cpp weight-paging adapter, then a vLLM KV-connector experiment
+4. a read-only QLoRA weight-paging adapter for PEFT/bitsandbytes (page the
+   frozen quantized base; keep adapter + optimizer state resident)
+5. TensorRT-LLM adapter
+6. a write-back / dirty-page path (prerequisite for paging *mutable* tensors,
+   e.g. full-fine-tuning optimizer state — expected to be PCIe-bound)
 7. optional CXL/PMEM-specific `MemorySource` implementations where the OS/API
    exposes useful placement controls
 

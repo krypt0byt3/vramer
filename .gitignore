@@ -39,3 +39,6 @@ venv/
 .idea/
 *.swp
 .DS_Store
+
+# Claude Code agent worktrees / session state
+.claude/
