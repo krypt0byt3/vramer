@@ -27,14 +27,18 @@ echo
 printf '%-10s %-8s %-9s %-10s %-9s %-10s %-10s\n' \
     resident budget page elapsed hit_rate H2D_rate stall_ms
 
-echo "-- resident-fraction sweep (page=64MiB) --"
-for budget in "$SRC_GIB" 6 4 2 1; do
-    out="$(run "$budget" 64MiB "$PASSES")"
+echo "-- resident-fraction sweep (page=64MiB, LRU vs MRU) --"
+printf '%-10s %-8s %-9s %-10s %-9s %-10s %-10s\n' \
+    'policy' budget page elapsed hit_rate H2D_rate stall_ms
+for policy in lru mru; do
+  for budget in "$SRC_GIB" 6 4 2 1; do
+    out="$(run "$budget" 64MiB "$PASSES" --eviction "$policy")"
     frac="$(awk "BEGIN{printf \"%.0f%%\", 100*$budget/$SRC_GIB}")"
     printf '%-10s %-8s %-9s %-10s %-9s %-10s %-10s\n' \
-        "$frac" "${budget}GiB" "64MiB" \
+        "${policy}/${frac}" "${budget}GiB" "64MiB" \
         "$(field elapsed "$out")" "$(field 'hit rate' "$out")" \
         "$(field 'H2D rate\*' "$out")" "$(field stall "$out")"
+  done
 done
 
 echo

@@ -44,4 +44,8 @@ if(VRAMER_BUILD_TESTS)
   add_executable(test_pager tests/test_pager.cu)
   target_link_libraries(test_pager PRIVATE vramer CUDA::cudart)
   add_test(NAME pager COMMAND test_pager)
+
+  add_executable(test_pager_concurrency tests/test_pager_concurrency.cu)
+  target_link_libraries(test_pager_concurrency PRIVATE vramer CUDA::cudart Threads::Threads)
+  add_test(NAME pager_concurrency COMMAND test_pager_concurrency)
 endif()

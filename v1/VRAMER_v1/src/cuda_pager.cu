@@ -158,28 +158,35 @@ bool CudaPager::reusable(DeviceSlot& slot) {
 }
 
 std::size_t CudaPager::choose_victim() {
-    // Free slot first.
+    // Under MRU we prefer to evict the most-recently-used page; under LRU the
+    // least-recently-used. `better` says whether candidate `a` should beat the
+    // current best `b` for eviction given the policy.
+    const bool mru = (config_.eviction == EvictionPolicy::Mru);
+    auto better = [mru](std::uint64_t a, std::uint64_t b) {
+        return mru ? (a > b) : (a < b);
+    };
+
+    // Free slot first, regardless of policy.
     for (std::size_t i = 0; i < slots_.size(); ++i) {
         if (slots_[i].page_id == UINT64_MAX && reusable(slots_[i])) return i;
     }
 
-    // LRU among immediately reusable slots.
+    // Best eviction candidate among immediately reusable slots.
     std::size_t best = slots_.size();
-    std::uint64_t oldest = std::numeric_limits<std::uint64_t>::max();
+    std::uint64_t best_touch = 0;
     for (std::size_t i = 0; i < slots_.size(); ++i) {
-        if (reusable(slots_[i]) && slots_[i].last_touch < oldest) {
-            oldest = slots_[i].last_touch;
+        if (reusable(slots_[i]) && (best == slots_.size() || better(slots_[i].last_touch, best_touch))) {
+            best_touch = slots_[i].last_touch;
             best = i;
         }
     }
     if (best != slots_.size()) return best;
 
-    // All candidates are still in flight. Block on the oldest unleased slot,
-    // but never evict a page that still has a live lease.
-    oldest = std::numeric_limits<std::uint64_t>::max();
+    // All candidates are still in flight. Block on the best-by-policy unleased
+    // slot, but never evict a page that still has a live lease.
     for (std::size_t i = 0; i < slots_.size(); ++i) {
-        if (slots_[i].leases == 0 && slots_[i].last_touch < oldest) {
-            oldest = slots_[i].last_touch;
+        if (slots_[i].leases == 0 && (best == slots_.size() || better(slots_[i].last_touch, best_touch))) {
+            best_touch = slots_[i].last_touch;
             best = i;
         }
     }
@@ -191,15 +198,36 @@ std::size_t CudaPager::choose_victim() {
     return best;
 }
 
-CudaPager::StagingSlot& CudaPager::next_staging() {
-    auto& stage = staging_[staging_cursor_++ % staging_.size()];
+std::size_t CudaPager::reserve_staging(std::unique_lock<std::mutex>& lock) {
+    // Find an unreserved staging buffer. If every buffer is mid-load (more
+    // concurrent loaders than buffers), wait for one to be released. Set
+    // staging_buffers >= prefetch_workers + 1 to avoid this stall.
+    std::size_t idx = staging_.size();
+    for (;;) {
+        for (std::size_t n = 0; n < staging_.size(); ++n) {
+            const std::size_t i = (staging_cursor_ + n) % staging_.size();
+            if (!staging_[i].reserved) { idx = i; break; }
+        }
+        if (idx != staging_.size()) break;
+        const std::uint64_t t0 = now_ns();
+        staging_cv_.wait(lock, [this] {
+            for (auto& s : staging_) if (!s.reserved) return true;
+            return false;
+        });
+        stats_.stall_ns += now_ns() - t0;
+    }
+    staging_cursor_ = (idx + 1) % staging_.size();
+    auto& stage = staging_[idx];
     if (stage.in_flight) {
+        // The buffer's previous H2D must finish before we overwrite the pinned
+        // bytes. Rare when there are enough buffers.
         const std::uint64_t t0 = now_ns();
         VRAMER_CUDA(cudaEventSynchronize(stage.h2d_done));
         stats_.stall_ns += now_ns() - t0;
         stage.in_flight = false;
     }
-    return stage;
+    stage.reserved = true;
+    return idx;
 }
 
 PageLease CudaPager::acquire(std::uint64_t page_id) {
@@ -207,57 +235,90 @@ PageLease CudaPager::acquire(std::uint64_t page_id) {
 }
 
 PageLease CudaPager::acquire_impl(std::uint64_t page_id, bool is_prefetch) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::unique_lock<std::mutex> lock(mutex_);
     VRAMER_CUDA(cudaSetDevice(config_.gpu));
     if (page_id >= page_count()) throw std::out_of_range("page_id exceeds MemorySource");
 
-    auto found = resident_.find(page_id);
-    if (found != resident_.end()) {
-        auto& slot = slots_[found->second];
-        ++slot.leases;
-        slot.last_touch = ++clock_;
-        // A prefetch that lands on an already-resident page is not a demand hit.
-        if (!is_prefetch) ++stats_.hits;
-        auto* ptr = static_cast<std::byte*>(device_cache_) + found->second * config_.page_size;
-        return PageLease(this, found->second, page_id, ptr, slot.valid_bytes);
+    for (;;) {
+        auto found = resident_.find(page_id);
+        if (found != resident_.end()) {
+            const std::size_t idx = found->second;
+            if (slots_[idx].loading) {
+                // Coalesce: another caller is already loading this exact page.
+                // Wait until its H2D has been issued (load_done recorded) rather
+                // than starting a duplicate load.
+                load_cv_.wait(lock, [this, idx, page_id] {
+                    return !slots_[idx].loading || slots_[idx].page_id != page_id;
+                });
+                if (slots_[idx].page_id != page_id) continue;  // rare: slot repurposed
+            }
+            auto& slot = slots_[idx];
+            ++slot.leases;
+            slot.last_touch = ++clock_;
+            // A prefetch that lands on an already-resident page is not a demand hit.
+            if (!is_prefetch) ++stats_.hits;
+            auto* ptr = static_cast<std::byte*>(device_cache_) + idx * config_.page_size;
+            return PageLease(this, idx, page_id, ptr, slot.valid_bytes);
+        }
+
+        // Miss. choose_victim() may throw if every slot is leased; it runs
+        // before any state mutation so a throw leaves the pager unchanged.
+        const std::size_t index = choose_victim();
+        if (slots_[index].page_id != UINT64_MAX) {
+            resident_.erase(slots_[index].page_id);
+            ++stats_.evictions;
+        }
+
+        const std::uint64_t offset = page_id * config_.page_size;
+        const std::size_t valid = static_cast<std::size_t>(
+            std::min<std::uint64_t>(config_.page_size, source_->size() - offset));
+        auto* device_ptr = static_cast<std::byte*>(device_cache_) + index * config_.page_size;
+
+        // Reserve + publish the slot BEFORE dropping the lock. leases=1 keeps it
+        // from being evicted, and loading=true makes concurrent acquires of this
+        // page coalesce above instead of launching a duplicate load.
+        {
+            auto& slot = slots_[index];
+            slot.page_id = page_id;
+            slot.valid_bytes = valid;
+            slot.last_touch = ++clock_;
+            slot.leases = 1;
+            slot.loading = true;
+        }
+        resident_[page_id] = index;
+        if (is_prefetch) ++stats_.prefetches; else ++stats_.misses;
+
+        const std::size_t stage_idx = reserve_staging(lock);
+        void* host = staging_[stage_idx].host;
+        const cudaEvent_t load_done = slots_[index].load_done;
+        const cudaEvent_t h2d_done = staging_[stage_idx].h2d_done;
+
+        // ---- unlocked region: the expensive source->pinned copy and the async
+        // H2D run here so they overlap other threads' compute and transfers.
+        // Only stable handles (device_ptr, host, events, stream) are touched;
+        // the slot and staging buffer are reserved, so no other thread writes
+        // them. CUDA runtime calls are themselves thread-safe.
+        lock.unlock();
+        const std::uint64_t t_read = now_ns();
+        source_->read(offset, host, valid);
+        const std::uint64_t read_ns = now_ns() - t_read;
+        VRAMER_CUDA(cudaMemcpyAsync(device_ptr, host, valid,
+                                    cudaMemcpyHostToDevice, transfer_stream_));
+        VRAMER_CUDA(cudaEventRecord(load_done, transfer_stream_));
+        VRAMER_CUDA(cudaEventRecord(h2d_done, transfer_stream_));
+        lock.lock();
+        // ---- end unlocked region ----
+
+        staging_[stage_idx].reserved = false;
+        staging_[stage_idx].in_flight = true;
+        slots_[index].loading = false;
+        stats_.source_read_ns += read_ns;
+        stats_.bytes_h2d += valid;
+        staging_cv_.notify_all();  // a staging buffer is free again
+        load_cv_.notify_all();     // coalesced waiters may proceed
+
+        return PageLease(this, index, page_id, device_ptr, valid);
     }
-
-    if (is_prefetch) ++stats_.prefetches;
-    else ++stats_.misses;
-
-    const std::size_t index = choose_victim();
-    auto& slot = slots_[index];
-    if (slot.page_id != UINT64_MAX) {
-        resident_.erase(slot.page_id);
-        ++stats_.evictions;
-    }
-
-    auto& stage = next_staging();
-    const std::uint64_t offset = page_id * config_.page_size;
-    const std::size_t valid = static_cast<std::size_t>(
-        std::min<std::uint64_t>(config_.page_size, source_->size() - offset));
-
-    // CPU/source -> small pinned ring. This preserves asynchronous H2D without
-    // pinning the entire host-side model and without assuming any RAM type.
-    const std::uint64_t t_read = now_ns();
-    source_->read(offset, stage.host, valid);
-    stats_.source_read_ns += now_ns() - t_read;
-
-    auto* device_ptr = static_cast<std::byte*>(device_cache_) + index * config_.page_size;
-    VRAMER_CUDA(cudaMemcpyAsync(device_ptr, stage.host, valid,
-                                cudaMemcpyHostToDevice, transfer_stream_));
-    VRAMER_CUDA(cudaEventRecord(slot.load_done, transfer_stream_));
-    VRAMER_CUDA(cudaEventRecord(stage.h2d_done, transfer_stream_));
-    stage.in_flight = true;
-
-    slot.page_id = page_id;
-    slot.valid_bytes = valid;
-    slot.last_touch = ++clock_;
-    slot.leases = 1;
-    resident_[page_id] = index;
-    stats_.bytes_h2d += valid;
-
-    return PageLease(this, index, page_id, device_ptr, valid);
 }
 
 void CudaPager::prefetch(std::uint64_t page_id) {

@@ -70,6 +70,12 @@ a device-wide synchronization on the normal path.
 - asynchronous H2D copies on a dedicated CUDA stream
 - compute-stream/event synchronization
 - leases to prevent eviction while GPU work is in flight
+- **lock-free source reads**: the `MemorySource::read` and async H2D run outside
+  the cache lock (slot + staging reserved first), with concurrent same-page loads
+  coalesced — so the demand thread pipelines the next page's load under the
+  current page's compute, and prefetch workers genuinely overlap
+- **scan-aware eviction** (`EvictionPolicy::Mru`): MRU retains a stable resident
+  prefix on a cyclic scan where LRU collapses to 0% reuse (see measurements)
 - optional background **prefetch worker pool** (`prefetch_async`) with a
   capacity-bounded queue and resident-page dedup (never thrashes the cache)
 - **telemetry**: demand hit rate, prefetch count, source-read time, stall time,
@@ -195,37 +201,42 @@ fraction, e.g. 100%, 80%, 60%, 40%, to measure the PCIe spill penalty.
 A residency/page-size sweep (`scripts/resident_sweep.sh`, raw data in
 `benchmarks/a2-residency-sweep.txt`) surfaced three load-bearing facts:
 
-1. **Generic LRU gives 0% reuse on a sequential full scan.** At any resident
-   fraction below 100%, multi-pass demand hit rate is 0% — a scan larger than
-   the cache evicts page 0 right before the next pass needs it (the classic
-   LRU/Belady sequential-scan pathology). For token-by-token layer streaming,
-   LRU is the *wrong* policy once the model exceeds the VRAM budget. A
-   scan-aware / layer-order eviction policy is therefore a correctness-shaped
-   win, not a micro-optimization.
-2. **The CPU source→pinned copy dominates and is serialized by the cache
-   mutex.** Throughput is flat (~5.6 GiB/s) across resident fractions and the
-   `src read` counter is ~85–90% of per-page time. Moving the source read out
-   from under the lock (so it overlaps H2D/compute) is the top throughput lever
-   — and the reason the current prefetch worker reaches 98% hit rate but no
-   speedup on single-pass streaming.
+1. **Generic LRU gives 0% reuse on a sequential full scan** (now fixed by MRU).
+   Under LRU, at any resident fraction below 100%, multi-pass demand hit rate is
+   0% — a scan larger than the cache evicts page 0 right before the next pass
+   needs it (the classic LRU/Belady pathology). `EvictionPolicy::Mru` retains a
+   stable resident prefix instead: measured MRU hit rate tracks ~2/3 × resident
+   fraction (the cyclic-scan optimum given a cold first pass) — e.g. at 75%
+   resident, 0% → 49% hit rate and 4.38 s → 2.35 s. Raw data:
+   `benchmarks/a2-residency-sweep-v1.1.txt`.
+2. **The CPU source→pinned copy dominated and was serialized by the cache
+   mutex** (now fixed by lock-free reads). The `src read` counter was ~85–90% of
+   per-page time. The read + async H2D now run outside the lock, giving the
+   demand thread a 1-deep load/compute pipeline; single-pass streaming improved
+   (~3.09 s → ~2.90 s on 16 GiB/4 GiB) and the concurrency stress test sped up
+   accordingly (threads no longer serialize on the read).
 3. **64 MiB is the page-size sweet spot on A2** (16 MiB loses ~10% to
    per-transfer overhead; 128/256 MiB add nothing).
 
-## v1.1 targets (reordered by measured impact)
+Note on prefetch workers: with lock-free reads the single demand thread already
+hides the source read behind the current page's H2D/compute, so explicit
+prefetch workers add little for *single-stream sequential* access (they still
+reach ~99% hit rate). Their expected payoff is predictable *non-sequential*
+access and multi-GPU, where one demand thread cannot pipeline far enough ahead.
 
-1. **Lock-free source reads** — reserve slot + private staging under the lock,
-   run `MemorySource::read` and issue the H2D *outside* it, coalescing
-   concurrent/duplicate loads of the same page via an in-progress map. This is
-   what makes the prefetch worker actually overlap. (Correctness hazard to
-   respect: a coalescing waiter must block on a `load_done` event that is
-   genuinely *not-ready* from reservation until the real `cudaMemcpyAsync`
-   records it — do not reuse the pre-completed init event.)
-2. **Scan-aware / predictive layer-order eviction** instead of generic LRU.
-3. multi-GPU independent caches and transfer streams
-4. topology-aware automatic NUMA binding / source allocation
-5. a C ABI so Rust/Python engines can bind the pager (see `docs/INTEGRATION.md`)
-6. llama.cpp weight-paging adapter, then a vLLM KV-connector experiment
-7. TensorRT-LLM adapter
-8. optional CXL/PMEM-specific `MemorySource` implementations where the OS/API
+## v1.1 targets
+
+Done in this release: lock-free source reads (#1 below, with the coalescing
+hazard handled — waiters block on `load_cv_` until the real H2D records
+`load_done`, never on a stale pre-completed event) and scan-aware MRU eviction.
+Remaining:
+
+1. multi-GPU independent caches and transfer streams
+2. topology-aware automatic NUMA binding / source allocation
+3. a C ABI so Rust/Python engines can bind the pager (see `docs/INTEGRATION.md`)
+4. predictive layer-order prefetch (feed the real layer schedule to the worker)
+5. llama.cpp weight-paging adapter, then a vLLM KV-connector experiment
+6. TensorRT-LLM adapter
+7. optional CXL/PMEM-specific `MemorySource` implementations where the OS/API
    exposes useful placement controls
 

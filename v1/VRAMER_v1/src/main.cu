@@ -80,15 +80,19 @@ void detect() {
 }
 
 __global__ void sample_kernel(const std::uint8_t* data, std::size_t n,
-                              unsigned long long* sink) {
+                              unsigned long long* sink, int reps) {
     unsigned long long local = 0;
     const std::size_t sample_stride = 4096;
     std::size_t sample = blockIdx.x * blockDim.x + threadIdx.x;
     std::size_t samples = (n + sample_stride - 1) / sample_stride;
     std::size_t grid = blockDim.x * gridDim.x;
-    for (std::size_t s = sample; s < samples; s += grid) {
-        std::size_t i = s * sample_stride;
-        if (i < n) local += data[i];
+    // `reps` simulates heavier per-page compute (real GEMM/attention work), so
+    // the prefetch worker has something to overlap the next page's load with.
+    for (int r = 0; r < reps; ++r) {
+        for (std::size_t s = sample; s < samples; s += grid) {
+            std::size_t i = s * sample_stride;
+            if (i < n) local += data[i] + static_cast<unsigned long long>(r);
+        }
     }
     if (local) atomicAdd(sink, local);
 }
@@ -118,6 +122,8 @@ void bench(const Args& args) {
     const unsigned prefetch_workers = static_cast<unsigned>(std::stoul(get(args, "prefetch-workers", "0")));
     const std::uint64_t prefetch_ahead = std::stoull(get(args, "prefetch-ahead", "0"));
     const std::string source_kind = get(args, "source", "ram");
+    const std::string evict = get(args, "eviction", "lru");
+    const int compute_reps = std::stoi(get(args, "compute-reps", "1"));
 
     vramer::MemorySourcePtr source;
     if (source_kind == "file") {
@@ -137,6 +143,9 @@ void bench(const Args& args) {
     cfg.page_size = page;
     cfg.staging_buffers = staging;
     cfg.prefetch_workers = prefetch_workers;
+    if (evict == "mru") cfg.eviction = vramer::EvictionPolicy::Mru;
+    else if (evict == "lru") cfg.eviction = vramer::EvictionPolicy::Lru;
+    else throw std::invalid_argument("--eviction must be lru or mru");
 
     std::cout << "Source:       " << source->name() << "\n"
               << "Source size:  " << vramer::human_bytes(source->size()) << "\n"
@@ -144,6 +153,7 @@ void bench(const Args& args) {
               << "VRAM budget:  " << vramer::human_bytes(budget) << "\n"
               << "Page size:    " << vramer::human_bytes(page) << "\n"
               << "Staging ring: " << staging << " x " << vramer::human_bytes(page) << " pinned\n"
+              << "Eviction:     " << evict << "\n"
               << "Prefetch:     " << prefetch_workers << " worker(s), ahead=" << prefetch_ahead << "\n";
 
     vramer::CudaPager pager(source, cfg);
@@ -168,7 +178,7 @@ void bench(const Args& args) {
             const int threads = 256;
             const int blocks = 64;
             sample_kernel<<<blocks, threads, 0, compute>>>(
-                static_cast<const std::uint8_t*>(lease.device_ptr()), lease.bytes(), sink);
+                static_cast<const std::uint8_t*>(lease.device_ptr()), lease.bytes(), sink, compute_reps);
             VRAMER_CUDA(cudaGetLastError());
             lease.release_on(compute);
         }
@@ -223,6 +233,8 @@ bench options:
   --passes N              sequential passes (default 1)
   --prefetch-workers N    background prefetch worker threads (default 0)
   --prefetch-ahead N      stay N pages ahead of the demand cursor (needs workers)
+  --eviction lru|mru      eviction policy (default lru; mru is scan-resistant)
+  --compute-reps N        per-page kernel work multiplier (default 1)
 
 Examples:
   vramer detect

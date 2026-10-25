@@ -17,6 +17,18 @@
 
 namespace vramer {
 
+// Which resident page to evict on a miss.
+//
+//  Lru  - evict the least-recently-used page. Good general default, but it is
+//         *pessimal* for a cyclic sequential scan larger than the cache: it
+//         evicts the page that will be reused soonest, giving 0% reuse (the
+//         classic Belady/LRU scan pathology; see benchmarks/a2-residency-sweep).
+//  Mru  - evict the most-recently-used page. Scan-resistant: a cyclic scan
+//         larger than the cache retains a stable resident prefix, so the hit
+//         rate approaches the resident fraction instead of collapsing to zero.
+//         This is the right policy for token-by-token model-layer streaming.
+enum class EvictionPolicy { Lru, Mru };
+
 struct PagerConfig {
     int gpu = 0;
     std::uint64_t vram_budget = 2ull << 30;   // 2 GiB
@@ -26,6 +38,7 @@ struct PagerConfig {
     // pager fully synchronous (v1.0 behavior). 1 is the common case: it lets
     // source->pinned->H2D of future pages overlap compute on the current page.
     unsigned prefetch_workers = 0;
+    EvictionPolicy eviction = EvictionPolicy::Lru;
 };
 
 struct PagerStats {
@@ -124,6 +137,11 @@ private:
         std::size_t valid_bytes = 0;
         std::uint64_t last_touch = 0;
         unsigned leases = 0;
+        // True from the moment a miss reserves this slot until its H2D has been
+        // issued and load_done re-recorded. A loading slot always has leases>=1,
+        // so it is never an eviction candidate, and concurrent acquires of the
+        // same page coalesce by waiting on load_cv_ until this clears.
+        bool loading = false;
         cudaEvent_t load_done = nullptr;
         std::vector<cudaEvent_t> pending_uses;
     };
@@ -131,7 +149,8 @@ private:
     struct StagingSlot {
         void* host = nullptr;
         cudaEvent_t h2d_done = nullptr;
-        bool in_flight = false;
+        bool in_flight = false;  // h2d_done holds a real, possibly-pending copy
+        bool reserved = false;   // exclusively held by an in-progress load
     };
 
     PageLease acquire_impl(std::uint64_t page_id, bool is_prefetch);
@@ -141,7 +160,9 @@ private:
     void reap_completed_events(DeviceSlot& slot, bool block);
     bool reusable(DeviceSlot& slot);
     std::size_t choose_victim();
-    StagingSlot& next_staging();
+    // Reserve a staging buffer for an unlocked source read. Caller must hold a
+    // unique_lock on mutex_ (passed so it can wait if every buffer is busy).
+    std::size_t reserve_staging(std::unique_lock<std::mutex>& lock);
     void worker_loop();
 
     MemorySourcePtr source_;
@@ -155,6 +176,10 @@ private:
     std::size_t staging_cursor_ = 0;
     PagerStats stats_{};
     mutable std::mutex mutex_;
+    // Signalled when a slot finishes loading (coalesced waiters) and when a
+    // staging buffer is released (reserve_staging waiters).
+    std::condition_variable load_cv_;
+    std::condition_variable staging_cv_;
 
     // Prefetch worker pool. The queue is guarded by its own mutex so enqueue
     // never contends with the main cache mutex_.

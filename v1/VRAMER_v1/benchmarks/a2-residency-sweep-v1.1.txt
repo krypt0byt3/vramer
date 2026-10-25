@@ -1,0 +1,45 @@
+VRAMER residency sweep  gpu=0  source=8GiB  passes=3  2026-10-25T19:45:22Z
+
+resident   budget   page      elapsed    hit_rate  H2D_rate   stall_ms  
+-- resident-fraction sweep (page=64MiB, LRU vs MRU) --
+policy     budget   page      elapsed    hit_rate  H2D_rate   stall_ms  
+lru/100%   8GiB     64MiB     1.420 s    66.7%     5.63 GiB/s 280.589 ms
+lru/75%    6GiB     64MiB     4.378 s    0.0%      5.48 GiB/s 517.888 ms
+lru/50%    4GiB     64MiB     4.214 s    0.0%      5.70 GiB/s 887.066 ms
+lru/25%    2GiB     64MiB     4.389 s    0.0%      5.47 GiB/s 585.529 ms
+lru/12%    1GiB     64MiB     4.236 s    0.0%      5.67 GiB/s 764.492 ms
+mru/100%   8GiB     64MiB     1.504 s    66.7%     5.32 GiB/s 225.390 ms
+mru/75%    6GiB     64MiB     2.353 s    49.0%     5.21 GiB/s 237.646 ms
+mru/50%    4GiB     64MiB     2.866 s    32.6%     5.65 GiB/s 607.415 ms
+mru/25%    2GiB     64MiB     4.001 s    16.1%     5.03 GiB/s 261.467 ms
+mru/12%    1GiB     64MiB     4.255 s    7.6%      5.21 GiB/s 285.919 ms
+
+-- page-size sweep (resident=50%, budget=4GiB) --
+50%        4GiB     16MiB     4.348 s    0.0%      5.52 GiB/s 446.173 ms
+50%        4GiB     32MiB     4.392 s    0.0%      5.46 GiB/s 526.847 ms
+50%        4GiB     64MiB     4.322 s    0.0%      5.55 GiB/s 530.439 ms
+50%        4GiB     128MiB    4.227 s    0.0%      5.68 GiB/s 725.534 ms
+50%        4GiB     256MiB    4.454 s    0.0%      5.39 GiB/s 672.178 ms
+
+-- prefetch A/B (resident=50%, page=64MiB, single pass) --
+baseline   4GiB     64MiB     1.418 s    0.0%      5.64 GiB/s 287.395 ms
+prefetch   4GiB     64MiB     1.638 s    99.2%     4.88 GiB/s 46.715 ms 
+
+================================================================
+INTERPRETATION (v1.1: lock-free reads + MRU, 2x NVIDIA A2 SM86)
+================================================================
+MRU eviction fixes the LRU sequential-scan collapse. Over 3 passes (pass 1 is
+always cold, so the achievable average hit rate ceiling is 2/3 x resident_frac):
+
+  resident   LRU hit   MRU hit   MRU ceiling(2/3*frac)   MRU elapsed vs LRU
+  75%        0.0%      49.0%     50.0%                   2.35s vs 4.38s (1.9x)
+  50%        0.0%      32.6%     33.3%                   2.87s vs 4.21s (1.5x)
+  25%        0.0%      16.1%     16.7%                   4.00s vs 4.39s
+  12%        0.0%       7.6%      8.3%                   4.26s vs 4.24s
+
+MRU retains a stable resident prefix across passes, so it reaches within ~1 point
+of the theoretical optimum for a cyclic scan. For token-by-token model-layer
+streaming this is the difference between re-streaming the whole model every token
+(LRU) and keeping the resident fraction hot (MRU). Lock-free source reads give the
+single demand thread a 1-deep load/compute pipeline, so baseline streaming also
+improved (~3.09s -> ~2.90s on the 16GiB/4GiB single-pass case).
