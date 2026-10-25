@@ -13,6 +13,8 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
+#include <cuda_runtime_api.h>
+
 namespace vramer {
 
 namespace {
@@ -145,6 +147,41 @@ void AnonymousRamSource::write(std::uint64_t offset, const void* src, std::size_
 void BorrowedMemorySource::read(std::uint64_t offset, void* dst, std::size_t bytes) {
     checked_range(size_, offset, bytes);
     std::memcpy(dst, base_ + offset, bytes);
+}
+
+PinnedHostSource::PinnedHostSource(std::uint64_t bytes, bool touch) : size_(bytes) {
+    if (bytes == 0) throw std::invalid_argument("PinnedHostSource size must be > 0");
+    void* p = nullptr;
+    cudaError_t rc = ::cudaHostAlloc(&p, bytes, cudaHostAllocPortable);
+    if (rc != cudaSuccess)
+        throw std::runtime_error("cudaHostAlloc failed: " + std::string(::cudaGetErrorString(rc)));
+    mapping_ = static_cast<std::byte*>(p);
+    if (touch) {
+        long page = ::sysconf(_SC_PAGESIZE);
+        if (page <= 0) page = 4096;
+        for (std::uint64_t i = 0; i < bytes; i += static_cast<std::uint64_t>(page))
+            mapping_[i] = static_cast<std::byte>((i / page) & 0xffu);
+        mapping_[bytes - 1] = std::byte{0x5a};
+    }
+}
+
+PinnedHostSource::~PinnedHostSource() {
+    if (mapping_) ::cudaFreeHost(mapping_);
+}
+
+void PinnedHostSource::read(std::uint64_t offset, void* dst, std::size_t bytes) {
+    checked_range(size_, offset, bytes);
+    std::memcpy(dst, mapping_ + offset, bytes);
+}
+
+void PinnedHostSource::write(std::uint64_t offset, const void* src, std::size_t bytes) {
+    checked_range(size_, offset, bytes);
+    std::memcpy(mapping_ + offset, src, bytes);
+}
+
+const void* PinnedHostSource::pinned_host_ptr(std::uint64_t offset, std::size_t bytes) const noexcept {
+    if (offset > size_ || bytes > size_ - offset) return nullptr;
+    return mapping_ + offset;
 }
 
 } // namespace vramer

@@ -54,6 +54,7 @@ struct PagerStats {
     std::uint64_t stall_ns = 0;            // time blocked waiting on staging/eviction
     std::uint64_t lease_sync_fallbacks = 0; // release_on() omitted; sync fallback hit
     std::uint64_t bytes_d2h = 0;           // dirty pages written back to the source
+    std::uint64_t direct_loads = 0;        // loads that DMA'd straight from a pinned source
 
     double hit_rate() const noexcept {
         const std::uint64_t total = hits + misses;

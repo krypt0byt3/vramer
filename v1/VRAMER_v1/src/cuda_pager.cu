@@ -308,9 +308,28 @@ PageLease CudaPager::acquire_impl(std::uint64_t page_id, bool is_prefetch, bool 
         resident_[page_id] = index;
         if (is_prefetch) ++stats_.prefetches; else ++stats_.misses;
 
+        const cudaEvent_t load_done = slots_[index].load_done;
+
+        // Fast path: if the source exposes a pinned host pointer, DMA straight
+        // from it -- no staging buffer, no CPU source->pinned copy (the measured
+        // bottleneck), approaching the raw PCIe ceiling.
+        const void* direct = source_->pinned_host_ptr(offset, valid);
+        if (direct) {
+            lock.unlock();
+            VRAMER_CUDA(cudaMemcpyAsync(device_ptr, direct, valid,
+                                        cudaMemcpyHostToDevice, transfer_stream_));
+            VRAMER_CUDA(cudaEventRecord(load_done, transfer_stream_));
+            lock.lock();
+            slots_[index].loading = false;
+            stats_.bytes_h2d += valid;
+            ++stats_.direct_loads;
+            load_cv_.notify_all();
+            return PageLease(this, index, page_id, device_ptr, valid);
+        }
+
+        // Staging path: pageable source -> pinned ring -> async H2D.
         const std::size_t stage_idx = reserve_staging(lock);
         void* host = staging_[stage_idx].host;
-        const cudaEvent_t load_done = slots_[index].load_done;
         const cudaEvent_t h2d_done = staging_[stage_idx].h2d_done;
 
         // ---- unlocked region: the expensive source->pinned copy and the async

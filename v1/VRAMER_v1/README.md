@@ -86,6 +86,11 @@ a device-wide synchronization on the normal path.
   pages are flushed D2H to a `WritableMemorySource` on eviction or flush
 - **NUMA-aware source placement** (`--numa-node N` / `AnonymousRamSource`): binds
   host pages to the GPU-local node before first-touch (no-op on non-NUMA systems)
+- **pinned direct-DMA fast path**: a `PinnedHostSource` (or a `pinned` borrowed
+  source) is DMA'd straight to the GPU, skipping the staging copy — the pager
+  takes it automatically via `MemorySource::pinned_host_ptr`
+- **`vramer probe`**: measures raw pageable-vs-pinned H2D/D2H bandwidth per GPU
+  and emits a hardware profile the Python planner consumes
 - a **C ABI** (`vramer_c.h`) + a **shared `libvramer.so`** for Python/Rust
   bindings without a C++ toolchain, plus reference code in `examples/` (llama.cpp
   PoC, QLoRA skeleton, and a runnable NumPy+ctypes paging demo)
@@ -251,6 +256,12 @@ A residency/page-size sweep (`scripts/resident_sweep.sh`, raw data in
    accordingly (threads no longer serialize on the read).
 3. **64 MiB is the page-size sweet spot on A2** (16 MiB loses ~10% to
    per-transfer overhead; 128/256 MiB add nothing).
+4. **This A2 setup is PCIe-bound, not copy-bound.** `vramer probe` reports raw
+   H2D of ~5.5 GiB/s pageable and only ~5.7 GiB/s *pinned* — so the pinned
+   direct-DMA path (which removes the CPU source copy entirely, `src read` → 0)
+   buys only ~3% here: the link itself is the ceiling. On hardware where the
+   source copy dominates, the same path is a much larger win. Always `probe`
+   before assuming where the bottleneck is.
 
 Note on prefetch workers: with lock-free reads the single demand thread already
 hides the source read behind the current page's H2D/compute, so explicit

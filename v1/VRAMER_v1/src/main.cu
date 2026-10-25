@@ -5,9 +5,11 @@
 
 #include <cuda_runtime.h>
 
+#include <cctype>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -199,6 +201,7 @@ void print_result(const std::string& label, const RunResult& r) {
               << "  misses:      " << r.stats.misses << "\n"
               << "  hit rate:    " << std::setprecision(1) << 100.0 * r.stats.hit_rate() << "%\n"
               << "  prefetches:  " << r.stats.prefetches << " (queue skips " << r.stats.prefetch_queue_skips << ")\n"
+              << "  direct DMA:  " << r.stats.direct_loads << " (pinned source, no staging copy)\n"
               << "  evictions:   " << r.stats.evictions << "\n"
               << "  src read:    " << std::setprecision(3)
               << static_cast<double>(r.stats.source_read_ns) / 1e6 << " ms\n"
@@ -245,8 +248,11 @@ void bench(const Args& args) {
     } else if (source_kind == "ram") {
         auto bytes = vramer::parse_bytes(get(args, "bytes", "4GiB"));
         source = std::make_shared<vramer::AnonymousRamSource>(bytes, true, numa_node);
+    } else if (source_kind == "pinned") {
+        auto bytes = vramer::parse_bytes(get(args, "bytes", "4GiB"));
+        source = std::make_shared<vramer::PinnedHostSource>(bytes, true);
     } else {
-        throw std::invalid_argument("--source must be ram or file");
+        throw std::invalid_argument("--source must be ram, pinned, or file");
     }
 
     vramer::PagerConfig base;
@@ -318,18 +324,148 @@ void bench(const Args& args) {
               << " lightweight GPU work, and cache management.\n";
 }
 
+int pcie_gen_from_gts(double gts) {
+    if (gts >= 60.0) return 6;
+    if (gts >= 30.0) return 5;
+    if (gts >= 15.0) return 4;
+    if (gts >= 7.0)  return 3;
+    if (gts >= 4.0)  return 2;
+    if (gts >= 2.0)  return 1;
+    return 0;
+}
+
+// Read "<n>.0 GT/s PCIe" style sysfs link speed for a PCI BDF -> PCIe gen.
+int read_pcie_gen(const std::string& bdf) {
+    std::ifstream f("/sys/bus/pci/devices/" + bdf + "/current_link_speed");
+    if (!f) return 0;
+    double gts = 0; f >> gts;
+    return pcie_gen_from_gts(gts);
+}
+int read_pcie_width(const std::string& bdf) {
+    std::ifstream f("/sys/bus/pci/devices/" + bdf + "/current_link_width");
+    int w = 0; if (f) f >> w; return w;
+}
+
+// Time cudaMemcpyAsync over `iters` and return GiB/s.
+double time_copy(void* dst, const void* src, std::size_t bytes, cudaMemcpyKind kind,
+                 cudaStream_t s, int iters) {
+    cudaEvent_t a, b;
+    VRAMER_CUDA(cudaEventCreate(&a));
+    VRAMER_CUDA(cudaEventCreate(&b));
+    VRAMER_CUDA(cudaMemcpyAsync(dst, src, bytes, kind, s));  // warmup
+    VRAMER_CUDA(cudaStreamSynchronize(s));
+    VRAMER_CUDA(cudaEventRecord(a, s));
+    for (int i = 0; i < iters; ++i)
+        VRAMER_CUDA(cudaMemcpyAsync(dst, src, bytes, kind, s));
+    VRAMER_CUDA(cudaEventRecord(b, s));
+    VRAMER_CUDA(cudaEventSynchronize(b));
+    float ms = 0; VRAMER_CUDA(cudaEventElapsedTime(&ms, a, b));
+    cudaEventDestroy(a); cudaEventDestroy(b);
+    const double gib = static_cast<double>(bytes) * iters / (1024.0 * 1024.0 * 1024.0);
+    return ms > 0 ? gib / (ms / 1000.0) : 0.0;
+}
+
+void probe(const Args& args) {
+    const auto size = vramer::parse_bytes(get(args, "size", "256MiB"));
+    const int iters = std::stoi(get(args, "iters", "20"));
+    const std::string emit = get(args, "emit-profile");
+    int count = 0;
+    VRAMER_CUDA(cudaGetDeviceCount(&count));
+
+    const std::string gspec = get(args, "gpus", "all");
+    std::vector<int> gpus;
+    if (gspec == "all") {
+        for (int i = 0; i < count; ++i) gpus.push_back(i);
+    } else {
+        gpus = parse_gpu_list(gspec);
+    }
+
+    // pageable + pinned host buffers for H2D comparison.
+    void* pageable = std::malloc(size);
+    if (!pageable) throw std::runtime_error("host malloc failed");
+    std::memset(pageable, 1, size);
+
+    std::ofstream js;
+    if (!emit.empty()) {
+        js.open(emit);
+        js << "{\n  \"schema\": \"vramer-hw-profile/1\",\n";
+        js << "  \"host\": { \"ram_bytes\": " << host_ram_bytes() << ", \"numa_nodes\": 1 },\n";
+        js << "  \"gpus\": [\n";
+    }
+
+    std::cout << "VRAMER H2D/D2H bandwidth probe  size=" << vramer::human_bytes(size)
+              << "  iters=" << iters << "\n\n";
+
+    for (std::size_t gi = 0; gi < gpus.size(); ++gi) {
+        const int g = gpus[gi];
+        VRAMER_CUDA(cudaSetDevice(g));
+        cudaDeviceProp p{};
+        VRAMER_CUDA(cudaGetDeviceProperties(&p, g));
+        char bdf[32]{}; VRAMER_CUDA(cudaDeviceGetPCIBusId(bdf, sizeof(bdf), g));
+        std::string lbdf(bdf);
+        for (auto& c : lbdf) c = static_cast<char>(std::tolower(c));
+        std::size_t free_b = 0, total_b = 0;
+        VRAMER_CUDA(cudaMemGetInfo(&free_b, &total_b));
+
+        void* dev = nullptr; VRAMER_CUDA(cudaMalloc(&dev, size));
+        void* pinned = nullptr; VRAMER_CUDA(cudaHostAlloc(&pinned, size, cudaHostAllocPortable));
+        std::memset(pinned, 2, size);
+        cudaStream_t s = nullptr; VRAMER_CUDA(cudaStreamCreate(&s));
+
+        const double h2d_pageable = time_copy(dev, pageable, size, cudaMemcpyHostToDevice, s, iters);
+        const double h2d_pinned   = time_copy(dev, pinned,  size, cudaMemcpyHostToDevice, s, iters);
+        const double d2h_pinned   = time_copy(pinned, dev,  size, cudaMemcpyDeviceToHost, s, iters);
+        const int gen = read_pcie_gen(lbdf);
+        const int width = read_pcie_width(lbdf);
+
+        std::cout << "GPU " << g << ": " << p.name << "  PCIe "
+                  << (gen > 0 ? "gen" + std::to_string(gen) + " x" + std::to_string(width)
+                             : std::string("link n/a (sysfs hidden, e.g. in a VM)"))
+                  << "  copy-engines " << p.asyncEngineCount << "\n"
+                  << "  H2D pageable: " << std::fixed << std::setprecision(2) << h2d_pageable << " GiB/s\n"
+                  << "  H2D pinned:   " << h2d_pinned << " GiB/s  (" << std::setprecision(1)
+                  << (h2d_pageable > 0 ? h2d_pinned / h2d_pageable : 0.0) << "x pageable)\n"
+                  << "  D2H pinned:   " << std::setprecision(2) << d2h_pinned << " GiB/s\n\n";
+
+        if (js.is_open()) {
+            js << "    { \"index\": " << g << ", \"name\": \"" << p.name << "\", \"sm\": \""
+               << p.major << '.' << p.minor << "\", \"vram_bytes\": " << total_b
+               << ", \"pcie_gen\": " << gen << ", \"pcie_width\": " << width
+               << ", \"copy_engines\": " << p.asyncEngineCount
+               << ", \"numa_node\": " << gpu_numa_node(bdf)
+               << ", \"nvlink_peers\": [], \"nvlink_gibs\": 0.0"
+               << ", \"h2d_pageable_gibs\": " << std::setprecision(2) << h2d_pageable
+               << ", \"h2d_pinned_gibs\": " << h2d_pinned
+               << ", \"d2h_pinned_gibs\": " << d2h_pinned << " }"
+               << (gi + 1 < gpus.size() ? "," : "") << "\n";
+        }
+
+        cudaFree(dev); cudaFreeHost(pinned); cudaStreamDestroy(s);
+    }
+    std::free(pageable);
+    if (js.is_open()) {
+        js << "  ]\n}\n";
+        std::cout << "wrote hardware profile -> " << emit << "\n";
+    }
+}
+
 void usage() {
     std::cout << R"(VRAMER 1.0 - explicit host-memory <-> VRAM pager
 
 Commands:
   vramer detect
+  vramer probe [--size 256MiB] [--iters 20] [--gpus 0,1] [--emit-profile hw.json]
   vramer plan --model-bytes 12GiB --vram-budget 6GiB [--page-size 64MiB] [--bandwidth 5.5]
   vramer bench [options]
+
+probe measures raw H2D/D2H bandwidth (pageable vs pinned) per GPU and reports the
+PCIe generation/width; --emit-profile writes a hardware profile the Python
+planner (src/vramer_plan.py) consumes.
 
 bench options:
   --gpu N                 CUDA device (default 0)
   --gpus 0,1              run an independent cache per GPU, concurrently
-  --source ram|file       backing source (default ram)
+  --source ram|pinned|file  backing source (default ram; pinned = direct DMA)
   --bytes SIZE            RAM source size (default 4GiB)
   --file PATH             file source for mmap mode
   --vram-budget SIZE      device-cache budget (default 2GiB)
@@ -359,6 +495,7 @@ int main(int argc, char** argv) {
         const std::string cmd = argv[1];
         const Args args = parse_args(argc, argv, 2);
         if (cmd == "detect") detect();
+        else if (cmd == "probe") probe(args);
         else if (cmd == "plan") plan(args);
         else if (cmd == "bench") bench(args);
         else { usage(); return 1; }

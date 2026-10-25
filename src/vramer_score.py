@@ -1,10 +1,28 @@
 #!/usr/bin/env python3
 
+"""
+VRAMER scorer — a recommendation.
+
+Given a hardware profile (vramer-hw-profile/1) and a model profile
+(vramer-model-profile/1), search the config space (quant x batch, at the given
+VRAM budget / residency) and report the best decode throughput found, plus an
+honest verdict on whether host->GPU paging is worthwhile at all.
+
+Reuses the exact performance model from vramer_plan.py so the numbers agree.
+"""
+
 import argparse
 import json
+import sys
 from pathlib import Path
 
-VERSION = "0.1.0"
+# Import the shared performance model from the planner (same directory).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import vramer_plan as vp  # noqa: E402
+
+
+VERSION = "0.2.0"
+GIB = 1024 ** 3
 
 
 def load_json(path):
@@ -12,447 +30,239 @@ def load_json(path):
         return json.load(f)
 
 
-def save_json(path, obj):
-    with open(path, "w") as f:
-        json.dump(obj, f, indent=2)
+def search(model, profile, args):
+    gpus = args.gpus or len(profile.get("gpus", [])) or 1
 
+    bw, per_gpu_bw, bw_label = vp.effective_bandwidth(
+        profile, gpus, args.pinned, args.pcie_gen, args.pcie_width
+    )
 
-def get_bandwidth(profile):
-    try:
-        return profile["benchmarks"]["host_gpu_bandwidth"]
-    except KeyError:
-        return None
+    moe_frac = vp.moe_active_fraction(model) if args.moe else 1.0
 
+    quants = args.quants or ["fp16", "q8", "q4", "q4_k"]
+    batches = args.batches or [1, 8, 32]
 
-def score(profile, plan):
-    bw = get_bandwidth(profile)
+    configs = []
+    best = None
+    best_fit = None
 
-    result = {
-        "vramer_score_version": 1,
-        "vramer_version": VERSION,
-        "bandwidth_available": bw is not None,
+    for q in quants:
+        resident_bytes, rlabel = vp.resolve_resident_bytes(
+            model, q, args, profile, gpus
+        )
+        for b in batches:
+            est = vp.estimate(model, q, resident_bytes, b, bw, moe_frac)
+            est["resident_label"] = rlabel
+            configs.append(est)
+
+            if est["fits"]:
+                # Prefer the highest-precision config that fits (least batch).
+                key = (vp.QUANTS.index(q), b)
+                if best_fit is None or key < best_fit[0]:
+                    best_fit = (key, est)
+                continue
+
+            tok = est["decode_tok_s"] or 0.0
+            if best is None or tok > (best["decode_tok_s"] or 0.0):
+                best = est
+
+    return {
+        "gpus": gpus,
+        "bandwidth_gibs": bw,
+        "bandwidth_label": bw_label,
+        "pinned": args.pinned,
+        "moe_fraction": moe_frac,
+        "configs": configs,
+        "best_streaming": best,
+        "best_fit": best_fit[1] if best_fit else None,
     }
 
-    if not bw:
-        result["status"] = "no_bandwidth_benchmark"
-        return result
 
-    selected = [
-        str(x)
-        for x in plan["hardware"]["selected_gpu_ids"]
-    ]
+def recommend(model, result):
+    best_fit = result["best_fit"]
+    best = result["best_streaming"]
 
-    per_gpu = bw.get("per_gpu", {})
+    rec = {
+        "vramer_score_version": 1,
+        "vramer_version": VERSION,
+        "model": model["name"],
+        "gpus": result["gpus"],
+        "bandwidth_gibs": round(result["bandwidth_gibs"], 2),
+        "bandwidth_label": result["bandwidth_label"],
+    }
 
-    h2d = {}
-
-    for gpu in selected:
-        if gpu in per_gpu:
-            h2d[gpu] = float(
-                per_gpu[gpu].get(
-                    "h2d_gib_s",
-                    0.0,
-                )
+    if best_fit is not None:
+        rec["recommendation"] = "fit"
+        rec["paging_worthwhile"] = False
+        rec["best_config"] = {
+            "quant": best_fit["quant"],
+            "batch": best_fit["batch"],
+            "resident_gib": round(best_fit["resident_bytes"] / GIB, 2),
+            "verdict": best_fit["verdict"],
+        }
+        rec["reason"] = (
+            f"The model fits resident at {best_fit['quant']} within the "
+            f"budget. Decode is VRAM-bandwidth-bound, not PCIe-bound; "
+            f"host paging (VRAMER) adds no benefit at this quant."
+        )
+    elif best is not None and best.get("decode_tok_s"):
+        latency_ms = best["latency_s"] * 1000
+        worthwhile = best["decode_tok_s"] >= 1.0
+        rec["recommendation"] = "page"
+        rec["paging_worthwhile"] = bool(worthwhile)
+        rec["best_config"] = {
+            "quant": best["quant"],
+            "batch": best["batch"],
+            "resident_gib": round(best["resident_bytes"] / GIB, 2),
+            "spill_gib": round(best["spill_bytes"] / GIB, 2),
+            "decode_tok_s": round(best["decode_tok_s"], 2),
+            "latency_ms_per_token": round(latency_ms, 1),
+            "verdict": best["verdict"],
+        }
+        if worthwhile:
+            rec["reason"] = (
+                f"No config fits resident; best streaming config is "
+                f"{best['quant']} @ batch {best['batch']} -> "
+                f"{best['decode_tok_s']:.1f} tok/s aggregate "
+                f"({latency_ms:.0f} ms/token per sequence). PCIe-bound but "
+                f"usable — VRAMER paging is worthwhile here."
             )
-
-    aggregate = float(
-        bw.get(
-            "concurrent_h2d", {}
-        ).get(
-            "aggregate_gib_s",
-            0.0,
-        )
-    )
-
-    sum_individual = sum(h2d.values())
-
-    scaling = (
-        aggregate / sum_individual
-        if sum_individual > 0
-        else 0.0
-    )
-
-    memory = plan["memory"]["residency"]
-
-    overflow = float(
-        memory.get(
-            "overflow_gib",
-            0.0,
-        )
-    )
-
-    gpu_count = len(selected)
-
-    pp = int(
-        plan["parallel"].get(
-            "pp",
-            1,
-        )
-    )
-
-    tp = int(
-        plan["parallel"].get(
-            "tp",
-            1,
-        )
-    )
-
-    # --------------------------------------------------------
-    # Ideal concurrent host-transfer floor
-    # --------------------------------------------------------
-
-    if aggregate > 0 and overflow > 0:
-        ideal_concurrent_s = (
-            overflow / aggregate
-        )
+        else:
+            rec["reason"] = (
+                f"Best streaming config is {best['quant']} @ batch "
+                f"{best['batch']} but only {best['decode_tok_s']:.2f} tok/s "
+                f"aggregate ({latency_ms:.0f} ms/token). Firmly PCIe-bound; "
+                f"paging works but is slow — quantize harder, add GPUs, or "
+                f"move to a faster bus."
+            )
     else:
-        ideal_concurrent_s = 0.0
+        rec["recommendation"] = "none"
+        rec["paging_worthwhile"] = False
+        rec["reason"] = "No usable bandwidth in the profile."
 
-    # --------------------------------------------------------
-    # Pipeline stage transfer floor
-    #
-    # Assume approximately equal weight distribution between
-    # PP stages. Each stage has to consume its share of the
-    # RAM-backed weights.
-    #
-    # This is transfer-only. It does NOT include:
-    #   GPU compute
-    #   NCCL
-    #   kernel launch overhead
-    #   TensorRT scheduling
-    #   KV cache
-    #   imperfect overlap
-    # --------------------------------------------------------
-
-    pp_sequential_s = 0.0
-
-    if (
-        overflow > 0
-        and pp > 1
-        and gpu_count > 0
-    ):
-        overflow_per_stage = (
-            overflow / pp
-        )
-
-        stage_devices = selected[:pp]
-
-        for gpu in stage_devices:
-            speed = h2d.get(
-                gpu,
-                0.0,
-            )
-
-            if speed > 0:
-                pp_sequential_s += (
-                    overflow_per_stage
-                    / speed
-                )
-
-    elif (
-        overflow > 0
-        and gpu_count == 1
-    ):
-        gpu = selected[0]
-        speed = h2d.get(
-            gpu,
-            0.0,
-        )
-
-        if speed > 0:
-            pp_sequential_s = (
-                overflow / speed
-            )
-
-    # --------------------------------------------------------
-    # Transfer-only throughput ceilings
-    # --------------------------------------------------------
-
-    ideal_tok_s = (
-        1.0 / ideal_concurrent_s
-        if ideal_concurrent_s > 0
-        else None
-    )
-
-    pp_tok_s = (
-        1.0 / pp_sequential_s
-        if pp_sequential_s > 0
-        else None
-    )
-
-    # --------------------------------------------------------
-    # Host feed classification
-    # --------------------------------------------------------
-
-    if scaling >= 0.90:
-        feed_class = "excellent"
-    elif scaling >= 0.75:
-        feed_class = "good"
-    elif scaling >= 0.50:
-        feed_class = "shared_bottleneck"
-    else:
-        feed_class = "severe_shared_bottleneck"
-
-    # --------------------------------------------------------
-    # Strategy observations
-    # --------------------------------------------------------
-
-    observations = []
-
-    if scaling >= 0.90 and gpu_count > 1:
-        observations.append(
-            "Concurrent host-to-GPU bandwidth scales "
-            "almost linearly across the selected GPUs."
-        )
-
-    if (
-        pp > 1
-        and not plan["hardware"].get(
-            "p2p_complete",
-            False,
-        )
-        and scaling >= 0.75
-    ):
-        observations.append(
-            "Pipeline parallelism is favorable because "
-            "direct P2P is unavailable while host feeding "
-            "scales well across GPUs."
-        )
-
-    if overflow <= 0:
-        observations.append(
-            "The planned model is fully GPU resident; "
-            "host weight bandwidth should not be a primary "
-            "decode bottleneck."
-        )
-
-    if overflow > 0:
-        observations.append(
-            "Transfer-floor estimates represent only "
-            "RAM-to-GPU weight movement and are not "
-            "predicted end-to-end token latency."
-        )
-
-    result.update({
-        "status": "ready",
-
-        "selected_gpus": selected,
-
-        "host_feed": {
-            "per_gpu_h2d_gib_s": h2d,
-            "sum_individual_h2d_gib_s":
-                round(sum_individual, 3),
-
-            "aggregate_h2d_gib_s":
-                round(aggregate, 3),
-
-            "concurrent_scaling_efficiency":
-                round(scaling, 4),
-
-            "classification":
-                feed_class,
-        },
-
-        "model_memory": {
-            "ram_backed_weights_gib":
-                round(overflow, 3),
-        },
-
-        "transfer_floor": {
-            "ideal_concurrent_seconds_per_token":
-                round(ideal_concurrent_s, 4),
-
-            "pipeline_sequential_seconds_per_token":
-                round(pp_sequential_s, 4),
-
-            "ideal_concurrent_transfer_tok_s":
-                (
-                    round(ideal_tok_s, 3)
-                    if ideal_tok_s
-                    else None
-                ),
-
-            "pipeline_transfer_tok_s":
-                (
-                    round(pp_tok_s, 3)
-                    if pp_tok_s
-                    else None
-                ),
-        },
-
-        "parallel": {
-            "tp": tp,
-            "pp": pp,
-        },
-
-        "observations": observations,
-    })
-
-    return result
+    return rec
 
 
-def print_score(result):
+def print_score(model, result, rec):
     print()
-    print("=" * 68)
-    print(" VRAMER 0.1.0 — PERFORMANCE SCORE")
-    print("=" * 68)
-
-    if result["status"] != "ready":
-        print()
-        print("No bandwidth benchmark available.")
-        print()
-        return
-
-    feed = result["host_feed"]
-    floor = result["transfer_floor"]
-    mem = result["model_memory"]
+    print("=" * 72)
+    print(f" VRAMER {VERSION} — RECOMMENDATION")
+    print("=" * 72)
 
     print()
-    print("HOST → GPU")
-
-    for gpu, speed in (
-        feed["per_gpu_h2d_gib_s"].items()
-    ):
-        print(
-            f"  GPU {gpu:<3}       "
-            f"{speed:.3f} GiB/s"
-        )
-
-    print()
-    print(
-        f"  Sum links     "
-        f"{feed['sum_individual_h2d_gib_s']:.3f} GiB/s"
-    )
-
-    print(
-        f"  Concurrent    "
-        f"{feed['aggregate_h2d_gib_s']:.3f} GiB/s"
-    )
-
-    print(
-        f"  Scaling       "
-        f"{feed['concurrent_scaling_efficiency'] * 100:.1f}%"
-    )
-
-    print(
-        f"  Classification: "
-        f"{feed['classification']}"
-    )
+    print(f"  Model        : {rec['model']}  ({model['params']/1e9:.0f}B, "
+          f"{model.get('architecture','dense')})")
+    print(f"  GPUs         : {rec['gpus']}")
+    print(f"  Bandwidth    : {rec['bandwidth_gibs']:.1f} GiB/s "
+          f"[{rec['bandwidth_label']}]")
+    if result["moe_fraction"] < 1.0:
+        print(f"  MoE fraction : {result['moe_fraction']:.3f} "
+              f"(active expert streaming)")
 
     print()
-    print("MODEL STREAMING")
-
-    print(
-        f"  RAM-backed weights : "
-        f"{mem['ram_backed_weights_gib']:.2f} GiB"
-    )
-
-    print()
-    print("TRANSFER-ONLY FLOOR")
-
-    print(
-        f"  Ideal concurrent   : "
-        f"{floor['ideal_concurrent_seconds_per_token']:.3f} s/token"
-    )
-
-    if floor[
-        "ideal_concurrent_transfer_tok_s"
-    ] is not None:
-        print(
-            f"                       "
-            f"{floor['ideal_concurrent_transfer_tok_s']:.2f} tok/s"
-        )
-
-    print(
-        f"  PP sequential      : "
-        f"{floor['pipeline_sequential_seconds_per_token']:.3f} s/token"
-    )
-
-    if floor[
-        "pipeline_transfer_tok_s"
-    ] is not None:
-        print(
-            f"                       "
-            f"{floor['pipeline_transfer_tok_s']:.2f} tok/s"
-        )
+    print("  CONFIG SPACE (aggregate tok/s)")
+    print(f"    {'quant':>6} {'batch':>6} {'resident':>10} {'spill':>10} "
+          f"{'tok/s':>9} {'ms/tok':>8}  verdict")
+    print("    " + "-" * 66)
+    for est in result["configs"]:
+        resident = vp.human_bytes(est["resident_bytes"])
+        spill = vp.human_bytes(est["spill_bytes"])
+        if est["fits"]:
+            toks = "fits"
+            ms = "-"
+        else:
+            toks = f"{est['decode_tok_s']:.1f}" if est["decode_tok_s"] else "0"
+            ms = (f"{est['latency_s']*1000:.0f}"
+                  if est["latency_s"] not in (None, float("inf")) else "-")
+        print(f"    {est['quant']:>6} {est['batch']:>6} {resident:>10} "
+              f"{spill:>10} {toks:>9} {ms:>8}  {est['verdict']}")
 
     print()
-    print("NOTE")
-    print(
-        "  These are PCIe transfer-only limits."
-    )
-    print(
-        "  Actual inference also includes compute,"
-    )
-    print(
-        "  synchronization, NCCL, runtime overhead,"
-    )
-    print(
-        "  and imperfect transfer/compute overlap."
-    )
+    print("  BEST CONFIG")
+    bc = rec.get("best_config", {})
+    for k, v in bc.items():
+        print(f"    {k:<22}: {v}")
 
     print()
-    print("OBSERVATIONS")
-
-    for item in result["observations"]:
-        print(f"  - {item}")
-
+    print(f"  PAGING WORTHWHILE : {rec['paging_worthwhile']}")
+    print()
+    print("  VERDICT")
+    for line in _wrap(rec["reason"], 68):
+        print(f"    {line}")
+    print()
+    print("  NOTE: PCIe-bound upper bounds. Real decode also pays compute,")
+    print("  attention over the KV cache, and imperfect transfer/compute")
+    print("  overlap. Aggregate tok/s scales with batch; per-sequence latency")
+    print("  does not.")
     print()
 
 
-def main():
+def _wrap(text, width):
+    words = text.split()
+    lines = []
+    cur = ""
+    for w in words:
+        if len(cur) + len(w) + 1 > width:
+            lines.append(cur)
+            cur = w
+        else:
+            cur = (cur + " " + w).strip()
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def build_parser():
     ap = argparse.ArgumentParser(
-        description="VRAMER performance scorer"
+        description="VRAMER recommendation / scorer"
     )
+    ap.add_argument("--profile", required=True)
+    ap.add_argument("--model", required=True)
 
-    ap.add_argument(
-        "--profile",
-        required=True,
-    )
+    ap.add_argument("--vram-budget")
+    ap.add_argument("--resident-fraction", type=float)
 
-    ap.add_argument(
-        "--plan",
-        required=True,
-    )
+    ap.add_argument("--gpus", type=int, default=0)
 
-    ap.add_argument(
-        "--json",
-        action="store_true",
-    )
+    staging = ap.add_mutually_exclusive_group()
+    staging.add_argument("--pinned", dest="pinned", action="store_true")
+    staging.add_argument("--pageable", dest="pinned", action="store_false")
+    ap.set_defaults(pinned=True)
 
-    ap.add_argument(
-        "--output",
-    )
+    ap.add_argument("--pcie-gen", type=int)
+    ap.add_argument("--pcie-width", type=int)
 
-    args = ap.parse_args()
+    ap.add_argument("--moe", dest="moe", action="store_true", default=True)
+    ap.add_argument("--no-moe", dest="moe", action="store_false")
+
+    ap.add_argument("--quants", nargs="+",
+                    help="quants to search (default fp16 q8 q4 q4_k)")
+    ap.add_argument("--batches", nargs="+", type=int,
+                    help="batches to search (default 1 8 32)")
+
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--output")
+    return ap
+
+
+def main(argv=None):
+    args = build_parser().parse_args(argv)
 
     profile = load_json(args.profile)
-    plan = load_json(args.plan)
+    model = load_json(args.model)
 
-    result = score(
-        profile,
-        plan,
-    )
+    result = search(model, profile, args)
+    rec = recommend(model, result)
 
     if args.json:
-        print(
-            json.dumps(
-                result,
-                indent=2,
-            )
-        )
+        print(json.dumps(rec, indent=2))
     else:
-        print_score(result)
+        print_score(model, result, rec)
 
     if args.output:
-        save_json(
-            args.output,
-            result,
-        )
-
-        print(
-            f"Score saved: {args.output}"
-        )
+        with open(args.output, "w") as f:
+            json.dump(rec, f, indent=2)
+        print(f"Score saved: {args.output}")
 
 
 if __name__ == "__main__":

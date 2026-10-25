@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <unistd.h>
 
 // CHECK() compiles out under NDEBUG (Release), which would silently disable
 // every check. Use a macro that always runs and aborts on failure.
@@ -138,6 +139,31 @@ void test_prefetch_worker(cudaStream_t stream) {
     std::cout << "  [ok] async prefetch worker makes demand acquires hit\n";
 }
 
+// A pinned source must take the direct-DMA path (no staging copy) and still
+// deliver correct bytes.
+void test_pinned_direct(cudaStream_t stream) {
+    auto src = std::make_shared<PinnedHostSource>(kSource, /*touch=*/true);
+    CudaPager pager(src, base_config());
+    const long syspage = ::sysconf(_SC_PAGESIZE) > 0 ? ::sysconf(_SC_PAGESIZE) : 4096;
+    for (std::uint64_t p = 0; p < pager.page_count(); ++p) {
+        auto lease = pager.acquire(p);
+        lease.wait_on(stream);
+        std::uint8_t got = 0xff;
+        cudaMemcpyAsync(&got, lease.device_ptr(), 1, cudaMemcpyDeviceToHost, stream);
+        cudaStreamSynchronize(stream);
+        const std::uint8_t want =
+            static_cast<std::uint8_t>(((p * kPage) / static_cast<std::uint64_t>(syspage)) & 0xffu);
+        CHECK(got == want);
+        lease.release_on(stream);
+    }
+    pager.synchronize();
+    auto s = pager.stats();
+    CHECK(s.direct_loads == s.misses);  // every miss used the direct DMA path
+    CHECK(s.direct_loads > 0);
+    std::cout << "  [ok] pinned source uses direct DMA (" << s.direct_loads
+              << " loads, no staging copy), data correct\n";
+}
+
 } // namespace
 
 int main() {
@@ -154,6 +180,7 @@ int main() {
     test_lru_eviction(stream);
     test_lease_prevents_eviction(stream);
     test_prefetch_worker(stream);
+    test_pinned_direct(stream);
 
     cudaStreamDestroy(stream);
     std::cout << "pager tests passed\n";
