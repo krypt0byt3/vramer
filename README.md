@@ -23,7 +23,9 @@ sit under an inference/fine-tuning engine, not to replace one.
 | `v1/VRAMER_v1/README.md` | Full library docs: build, install, usage, measured results, roadmap. |
 | `v1/VRAMER_v1/docs/` | Integration design (vLLM connector, llama.cpp adapter, QLoRA). |
 | `v1/VRAMER_v1/examples/` | C-ABI reference programs, a runnable Python paging demo, and verified ggml-cuda integration demos. |
-| `src/*.py`, `a2_*.cu`, `*.txt` | Early A2 experiments, Python tooling, and benchmark logs (historical). |
+| **`python/`** | **pip-installable `vramer` Python package** — `Pager`/`Lease`/sources over the C ABI, plus the planner (`from vramer import plan`) and `vramer-plan`/`-detect`/`-score` CLIs. |
+| `src/*.py`, `profiles/` | Python detect/plan/score tooling and hardware/model profiles. |
+| `a2_*.cu`, `*.txt` | Early A2 experiments and benchmark logs (historical). |
 
 Large model/engine/checkpoint data is intentionally **not** tracked (see
 `.gitignore`).
@@ -38,6 +40,17 @@ ctest --test-dir build                      # 5 tests
 ./build/vramer detect                       # GPUs, VRAM, NUMA
 ./build/vramer plan --model-bytes 40GiB --vram-budget 16GiB   # will paging help?
 ./scripts/smoke.sh 86                        # build + test + demos in one shot
+```
+
+Python users:
+
+```bash
+pip install -e python/                        # the vramer package (planner works without a GPU)
+vramer-plan --profile profiles/current-machine.json --model profiles/llama-70b.json --matrix
+# with a built libvramer.so (VRAMER_LIB), drive the pager from Python:
+python -c "from vramer import RamSource, Pager
+with Pager(RamSource(64<<20), gpu=0, vram_budget=16<<20) as p:
+    print('pages:', p.page_count())"
 ```
 
 ## What works today (measured on 2× NVIDIA A2, SM86)

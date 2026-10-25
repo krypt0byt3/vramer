@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vramer"
+version = "0.2.0"
+description = "Python front end for the VRAMER VRAM pager: a lib-free decode planner plus a ctypes wrapper over the libvramer.so C ABI."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "VRAMER" }]
+keywords = ["cuda", "gpu", "vram", "paging", "llm", "inference", "qlora"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Intended Audience :: Developers",
+]
+# No hard runtime dependencies: ctypes is stdlib. numpy is OPTIONAL (only the
+# borrowed-source examples use it).
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
+numpy = ["numpy"]
+
+[project.scripts]
+vramer-plan = "vramer.planner:main"
+vramer-detect = "vramer.detect:main"
+vramer-score = "vramer.score:main"
+
+[project.urls]
+Homepage = "https://github.com/vramer/vramer"
+
+[tool.setuptools]
+packages = ["vramer"]
+
+[tool.setuptools.package-data]
+vramer = ["profiles/*.json"]

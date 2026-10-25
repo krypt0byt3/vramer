@@ -77,6 +77,20 @@ extern "C" vramer_source* vramer_source_ram(uint64_t bytes, char* errbuf, size_t
     }
 }
 
+extern "C" vramer_source* vramer_source_pinned(uint64_t bytes, char* errbuf, size_t errlen) {
+    try {
+        auto* h = new vramer_source();
+        h->ptr = std::make_shared<vramer::PinnedHostSource>(bytes, /*touch=*/true);
+        return h;
+    } catch (const std::exception& e) {
+        set_error(errbuf, errlen, e.what());
+        return nullptr;
+    } catch (...) {
+        set_error(errbuf, errlen, "unknown error in vramer_source_pinned");
+        return nullptr;
+    }
+}
+
 extern "C" vramer_source* vramer_source_file(const char* path, char* errbuf, size_t errlen) {
     try {
         if (!path) throw std::invalid_argument("vramer_source_file: path is NULL");
@@ -93,11 +107,12 @@ extern "C" vramer_source* vramer_source_file(const char* path, char* errbuf, siz
 }
 
 extern "C" vramer_source* vramer_source_borrowed(const void* base, uint64_t bytes,
-                                                 const char* label, char* errbuf, size_t errlen) {
+                                                 const char* label, int pinned,
+                                                 char* errbuf, size_t errlen) {
     try {
         auto* h = new vramer_source();
         h->ptr = std::make_shared<vramer::BorrowedMemorySource>(
-            base, bytes, std::string(label ? label : "borrowed"));
+            base, bytes, std::string(label ? label : "borrowed"), pinned != 0);
         return h;
     } catch (const std::exception& e) {
         set_error(errbuf, errlen, e.what());
@@ -166,6 +181,8 @@ extern "C" void vramer_pager_stats(vramer_pager* p, vramer_stats* out) {
     out->source_read_ns = s.source_read_ns;
     out->stall_ns = s.stall_ns;
     out->lease_sync_fallbacks = s.lease_sync_fallbacks;
+    out->bytes_d2h = s.bytes_d2h;
+    out->direct_loads = s.direct_loads;
 }
 
 extern "C" int vramer_pager_prefetch_async(vramer_pager* p, uint64_t page_id,

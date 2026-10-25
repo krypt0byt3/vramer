@@ -53,13 +53,22 @@ typedef struct {
     uint64_t hits, misses, evictions, bytes_h2d;
     uint64_t prefetches, prefetch_queue_skips;
     uint64_t source_read_ns, stall_ns, lease_sync_fallbacks;
+    uint64_t bytes_d2h;     /* dirty pages written back to the source */
+    uint64_t direct_loads;  /* loads that DMA'd straight from a pinned source */
 } vramer_stats;
 
 /* --- sources (return NULL on failure, writing errbuf) ------------------- */
 vramer_source* vramer_source_ram(uint64_t bytes, char* errbuf, size_t errlen);
+/* Page-locked (pinned) host source: DMA'd straight to the GPU (direct-DMA fast
+ * path, no staging copy). Pinning is scarce -- use for a hot subset, not a whole
+ * large model. */
+vramer_source* vramer_source_pinned(uint64_t bytes, char* errbuf, size_t errlen);
 vramer_source* vramer_source_file(const char* path, char* errbuf, size_t errlen);
+/* `pinned` != 0 marks the borrowed region as page-locked, enabling the
+ * direct-DMA fast path (e.g. a pinned PyTorch tensor). */
 vramer_source* vramer_source_borrowed(const void* base, uint64_t bytes,
-                                      const char* label, char* errbuf, size_t errlen);
+                                      const char* label, int pinned,
+                                      char* errbuf, size_t errlen);
 /* Releases this handle's shared_ptr reference. Safe on NULL. */
 void vramer_source_free(vramer_source*);
 

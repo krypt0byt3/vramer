@@ -43,7 +43,7 @@ def load_lib(path):
     lib = ctypes.CDLL(path)
     E = [ctypes.c_char_p, ctypes.c_size_t]  # (errbuf, errlen)
     lib.vramer_source_borrowed.restype = ctypes.c_void_p
-    lib.vramer_source_borrowed.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.c_char_p, *E]
+    lib.vramer_source_borrowed.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.c_char_p, ctypes.c_int, *E]
     lib.vramer_source_free.argtypes = [ctypes.c_void_p]
     lib.vramer_pager_create.restype = ctypes.c_void_p
     lib.vramer_pager_create.argtypes = [ctypes.c_void_p, ctypes.POINTER(VramerConfig), *E]
@@ -81,7 +81,7 @@ def main():
         buf[p * PAGE] = (p * 37 + 101) & 0xFF   # marker byte per page
 
     base = buf.ctypes.data_as(ctypes.c_void_p)
-    src = lib.vramer_source_borrowed(base, NBYTES, b"numpy-demo", err, 256)
+    src = lib.vramer_source_borrowed(base, NBYTES, b"numpy-demo", 0, err, 256)
     if not src:
         print("source_borrowed failed:", err.value.decode()); return 1
 

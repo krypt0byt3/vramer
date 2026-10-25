@@ -48,3 +48,10 @@ examples/llamacpp/vramer_ggml_mulmat
 examples/llamacpp/vramer_ggml_layer
 v1/VRAMER_v1/examples/llamacpp/vramer_ggml_mulmat
 v1/VRAMER_v1/examples/llamacpp/vramer_ggml_layer
+
+# Python package build artifacts
+*.egg-info/
+*.egg
+.pytest_cache/
+.venv/
+dist/

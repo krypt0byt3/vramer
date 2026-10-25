@@ -1,0 +1,21 @@
+{
+  "schema": "vramer-model-profile/1",
+  "name": "Mixtral-8x7B",
+  "params": 46700000000,
+  "architecture": "moe",
+  "n_layers": 32,
+  "hidden_size": 4096,
+  "bytes_per_param": {
+    "fp16": 2.0,
+    "q8": 1.0,
+    "q4": 0.5,
+    "q4_k": 0.5625
+  },
+  "kv_bytes_per_token": 131072,
+  "moe": {
+    "n_experts": 8,
+    "active_experts": 2,
+    "expert_param_fraction": 0.95
+  },
+  "notes": "Sparse MoE: 8 experts, top-2 routed. ~95% of params live in expert FFNs, so per token only active_experts/n_experts of the expert weights must stream."
+}

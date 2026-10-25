@@ -1,0 +1,17 @@
+{
+  "schema": "vramer-model-profile/1",
+  "name": "Llama-3-70B",
+  "params": 70600000000,
+  "architecture": "dense",
+  "n_layers": 80,
+  "hidden_size": 8192,
+  "bytes_per_param": {
+    "fp16": 2.0,
+    "q8": 1.0,
+    "q4": 0.5,
+    "q4_k": 0.5625
+  },
+  "kv_bytes_per_token": 655360,
+  "moe": null,
+  "notes": "80 layers, GQA (8 KV heads x 128). A classic 'needs paging on small GPUs' dense model."
+}

@@ -1,0 +1,50 @@
+{
+  "schema": "vramer-hw-profile/1",
+  "vramer_version": "0.2.0",
+  "timestamp": "2026-10-25T22:41:08.313153+00:00",
+  "host": {
+    "hostname": "Nexus",
+    "os": "Linux",
+    "os_release": "7.0.0-38-generic",
+    "machine": "x86_64",
+    "logical_cpus": 24,
+    "ram_bytes": 84328517632,
+    "numa_nodes": 1
+  },
+  "gpus": [
+    {
+      "index": 0,
+      "name": "NVIDIA A2",
+      "uuid": "GPU-2eb48f1c-bc87-638f-61c8-9e86dc263650",
+      "sm": "8.6",
+      "bdf": "0000:06:10.0",
+      "vram_bytes": 16101933056,
+      "pcie_gen": 3,
+      "pcie_width": 16,
+      "copy_engines": 2,
+      "numa_node": -1,
+      "nvlink_peers": [],
+      "nvlink_gibs": 0.0,
+      "h2d_pageable_gibs": 5.4,
+      "h2d_pinned_gibs": 5.7,
+      "d2h_pinned_gibs": 6.1
+    },
+    {
+      "index": 1,
+      "name": "NVIDIA A2",
+      "uuid": "GPU-5bdd589a-e930-27a2-ec36-ae954011b8bc",
+      "sm": "8.6",
+      "bdf": "0000:06:11.0",
+      "vram_bytes": 16101933056,
+      "pcie_gen": 3,
+      "pcie_width": 16,
+      "copy_engines": 2,
+      "numa_node": -1,
+      "nvlink_peers": [],
+      "nvlink_gibs": 0.0,
+      "h2d_pageable_gibs": 4.4,
+      "h2d_pinned_gibs": 5.8,
+      "d2h_pinned_gibs": 6.1
+    }
+  ]
+}

@@ -149,6 +149,7 @@ def _bind_signatures(lib: ctypes.CDLL) -> None:
         ctypes.c_void_p,  # const void* base
         ctypes.c_uint64,  # uint64_t bytes
         ctypes.c_char_p,  # const char* label
+        ctypes.c_int,     # int pinned
         ctypes.c_char_p,  # char* errbuf
         size_t,           # size_t errlen
     ]
@@ -292,7 +293,7 @@ class PagedWeightProvider:
             self._keepalive = source_path_or_bytes
             self._source = self._lib.vramer_source_borrowed(
                 base_ptr, ctypes.c_uint64(nbytes), label.encode("utf-8"),
-                err, _ERRLEN,
+                ctypes.c_int(0), err, _ERRLEN,
             )
         if not self._source:
             raise RuntimeError(f"vramer_source_* failed: {_errmsg(err)}")
