@@ -154,7 +154,8 @@ struct RunResult {
 // transfer stream, compute stream, and sink. Self-contained so it can be driven
 // from a dedicated per-GPU thread for multi-GPU runs.
 RunResult run_pager_bench(vramer::MemorySourcePtr source, vramer::PagerConfig cfg,
-                          unsigned passes, std::uint64_t prefetch_ahead, int compute_reps) {
+                          unsigned passes, std::uint64_t prefetch_ahead, int compute_reps,
+                          bool sync_per_page) {
     VRAMER_CUDA(cudaSetDevice(cfg.gpu));
     vramer::CudaPager pager(std::move(source), cfg);
     cudaStream_t compute = nullptr;
@@ -176,6 +177,13 @@ RunResult run_pager_bench(vramer::MemorySourcePtr source, vramer::PagerConfig cf
                 static_cast<const std::uint8_t*>(lease.device_ptr()), lease.bytes(), sink, compute_reps);
             VRAMER_CUDA(cudaGetLastError());
             lease.release_on(compute);
+            // Naive blocking-consumer model: draining the compute stream before
+            // the next acquire forces this page's H2D+compute to fully finish
+            // before the next page's transfer can begin, defeating any overlap.
+            // This reproduces the "blocking gather sync" pathology; leave it off
+            // (the default) to let acquire()'s async lease pipeline transfers
+            // with compute across iterations.
+            if (sync_per_page) VRAMER_CUDA(cudaStreamSynchronize(compute));
         }
     }
     VRAMER_CUDA(cudaStreamSynchronize(compute));
@@ -234,6 +242,9 @@ void bench(const Args& args) {
     const std::string source_kind = get(args, "source", "ram");
     const std::string evict = get(args, "eviction", "lru");
     const int compute_reps = std::stoi(get(args, "compute-reps", "1"));
+    // Model a consumer that blocks on each page's compute before fetching the
+    // next (the "blocking gather sync" that serializes transfer and compute).
+    const bool sync_per_page = get(args, "sync-per-page", "0") != "0";
     // --gpus 0,1 runs an independent cache per GPU concurrently; --gpu N is the
     // single-GPU shorthand (default 0).
     const std::vector<int> gpus = parse_gpu_list(get(args, "gpus", get(args, "gpu", "0")));
@@ -291,7 +302,7 @@ void bench(const Args& args) {
     if (gpus.size() == 1) {
         vramer::PagerConfig cfg = base;
         cfg.gpu = gpus[0];
-        RunResult r = run_pager_bench(source, cfg, passes, prefetch_ahead, compute_reps);
+        RunResult r = run_pager_bench(source, cfg, passes, prefetch_ahead, compute_reps, sync_per_page);
         std::cout << "\n";
         print_result("Results", r);
     } else {
@@ -304,7 +315,7 @@ void bench(const Args& args) {
                 try {
                     vramer::PagerConfig cfg = base;
                     cfg.gpu = gpus[i];
-                    results[i] = run_pager_bench(source, cfg, passes, prefetch_ahead, compute_reps);
+                    results[i] = run_pager_bench(source, cfg, passes, prefetch_ahead, compute_reps, sync_per_page);
                 } catch (...) {
                     errors[i] = std::current_exception();
                 }
@@ -488,6 +499,8 @@ bench options:
   --prefetch-ahead N      stay N pages ahead of the demand cursor (needs workers)
   --eviction lru|mru      eviction policy (default lru; mru is scan-resistant)
   --compute-reps N        per-page kernel work multiplier (default 1)
+  --sync-per-page         block on each page's compute before the next acquire
+                          (models a naive blocking consumer; defeats overlap)
   --numa-node N|auto      bind RAM source to NUMA node N; 'auto' = GPU-local node
 
 Examples:

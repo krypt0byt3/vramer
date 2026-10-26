@@ -74,6 +74,10 @@ if(VRAMER_BUILD_TESTS)
   target_link_libraries(test_writeback PRIVATE vramer CUDA::cudart)
   add_test(NAME writeback COMMAND test_writeback)
 
+  add_executable(test_prefetch_overlap tests/test_prefetch_overlap.cu)
+  target_link_libraries(test_prefetch_overlap PRIVATE vramer CUDA::cudart)
+  add_test(NAME prefetch_overlap COMMAND test_prefetch_overlap)
+
   add_executable(test_pager_concurrency tests/test_pager_concurrency.cu)
   target_link_libraries(test_pager_concurrency PRIVATE vramer CUDA::cudart Threads::Threads)
   add_test(NAME pager_concurrency COMMAND test_pager_concurrency)
