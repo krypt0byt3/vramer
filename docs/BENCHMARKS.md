@@ -134,6 +134,126 @@ Notes:
 
 ---
 
+## Batched serving — does amortisation rescue the throughput case?
+
+The single-stream tables above are latency-bound: every host weight streams over
+PCIe for each token, and one token stream cannot hide it. The throughput thesis
+for batched serving is that when **B sequences decode in parallel**, one decode
+step uploads a weight **once** and that upload is **amortised across all B tokens**
+of that step — so aggregate tok/s should scale with B and H2D **bytes per
+generated token should fall as B rises**. For MoE the catch is selectivity: a
+larger batch routes to the **union of more distinct experts**, so the streamed
+volume climbs again. This section measures which effect wins.
+
+**Tool & method.** `llama-batched-bench` with its default TG pattern
+(`0123 0123 …`), i.e. all B sequences decode one token together per step (B tokens
+/ decode step). The reported `S_TG t/s = pl·tg / t_tg` is the **aggregate decode
+throughput** summed across the B sequences, from a cleanly isolated TG timer. A
+shared prompt (`-pps`) makes prompt processing a single B-independent pass. Each
+(config, B) is a separate process (the `[VRAMER]` H2D counter is cumulative), run
+`REPS=2` at `TG=64` (throughput + range) and once at `TG=16`. The warmup + prompt
+pass is a fixed, B-independent H2D floor; subtracting the two TG points cancels it,
+giving the floor-free **marginal TG H2D per generated token**,
+`(h2d₆₄ − h2d₁₆)/(B·48)`. For VRAMER this H2D is the adapter's own exact counter;
+for native cpu-offload (which has no such counter) it is `nvidia-smi dmon` PCIe-rx
+integrated over the run — **approximate** (1 Hz, whole-GPU, includes one-time load),
+reported only as an order-of-magnitude cross-check. Driver:
+[`../benchmarks/run_batched.sh`](../benchmarks/run_batched.sh). `S_TG` is median of
+2 with the range in brackets.
+
+### MoE — Qwen1.5-MoE-A2.7B-Chat Q4_K_M (expert stacks paged, 7920 MiB host set)
+
+Aggregate decode throughput (tok/s, summed across the B sequences):
+
+| config | B=1 | B=2 | B=4 | B=8 | B=16 | B1→B16 |
+|---|--:|--:|--:|--:|--:|--:|
+| resident (`-ngl 99`) | 63.0 | 106.8 | 127.6 | 146.1 | **225.1** | 3.6× |
+| cpu-offload (llama H2D) | 7.33 | 8.84 | 10.44 | 12.99 | **17.42** | 2.4× |
+| vramer / 512 MiB | 2.65 | 3.50 | 4.57 | 6.54 | **10.36** | 3.9× |
+| vramer / 2048 MiB | 3.28 | 3.32 | 4.50 | 6.29 | **10.48** | 3.2× |
+
+Marginal **TG H2D per generated token** (MiB/token), and pager hit-rate at `TG=64`:
+
+| config | B=1 | B=2 | B=4 | B=8 | B=16 |
+|---|--:|--:|--:|--:|--:|
+| vramer / 512 MiB — MiB/tok | 1592 | 1361 | 1057 | 733 | 442 |
+| vramer / 512 MiB — hit-rate | 36.5 % | 37.0 % | 39.2 % | 43.6 % | 49.9 % |
+| vramer / 2048 MiB — MiB/tok | 1067 | 1361 | 1057 | 733 | 442 |
+| native cpu-offload — MiB/tok (dmon, approx) | 522 | 423 | 434 | 354 | 259 |
+
+Peak VRAM is flat in B and equals *offload base + budget* (cpu-offload 2158,
+vramer/512 2670, vramer/2048 4206 MiB), as single-stream.
+
+Reading:
+- **Amortisation is real but only partial for MoE.** VRAMER's bytes/token do fall
+  with B (1592 → 442, a 3.6× drop for a 16× batch) and aggregate tok/s does scale
+  (2.65 → 10.36, 3.9×). But the fall is **sub-linear**: ideal amortisation would be
+  1/B (→ ~100 MiB/tok), and it only reaches 442, because **selectivity erodes** —
+  more tokens route to the union of more experts, so per-step streamed volume
+  climbs even as it is shared. This is exactly the MoE catch the thesis warned of.
+- **The gap to native narrows but does not close.** native/vramer-512 is 2.8× at
+  B=1 and 1.7× at B=16 — batching closes roughly 40 % of the throughput gap — but
+  native cpu-offload amortises the *same way* (it uses llama's own selective
+  expert copy) **and moves ~1.7× fewer bytes** (VRAMER re-pages scattered ~1.8 MiB
+  expert slices at 4 MiB granularity, plus pager bookkeeping), so native stays
+  ahead in absolute tok/s at **every B and every budget**.
+- **The budget knob stops paying off under batching.** vramer/2048 ≈ vramer/512
+  for B ≥ 2 (same tok/s, same bytes/token): the per-step working set — the union
+  of B tokens' experts — overflows even 2 GiB, so both budgets thrash to the same
+  ~37–50 % hit-rate. The tunable-ceiling advantage is a single-stream / small-batch
+  property.
+
+### Dense — Qwen2.5-0.5B-Instruct Q4_K_M (FFN set paged, 206 MiB host set)
+
+| config | B=1 | B=2 | B=4 | B=8 | B1→B8 |
+|---|--:|--:|--:|--:|--:|
+| resident (`-ngl 99`) | 212.1 | 374.4 | 503.2 | 751.5 | 3.5× |
+| cpu-offload (llama H2D) | 16.12 | 35.35 | 67.11 | 129.46 | 8.0× |
+| vramer / 32 MiB | 10.65 | 21.37 | 38.74 | 81.86 | 7.7× |
+| vramer / 64 MiB | 11.08 | 19.82 | 38.47 | 73.47 | 6.6× |
+
+Marginal TG H2D per generated token (MiB/token):
+
+| config | B=1 | B=2 | B=4 | B=8 |
+|---|--:|--:|--:|--:|
+| vramer / 32 MiB | 248 | 124 | 62 | 31 |
+| native cpu-offload (dmon, approx) | 199 | 81 | 33 | 31 |
+
+Reading:
+- **Dense amortises almost ideally.** Every token uses the *same* FFN weights, so
+  the per-step H2D is constant and shared across all B tokens: VRAMER's bytes/token
+  track **1/B exactly** (248 → 124 → 62 → 31, each halving as B doubles), and
+  aggregate throughput scales near-linearly (7.7× for an 8× batch).
+- **At batch, VRAMER moves the same bytes as native** (31 vs 31 MiB/tok at B=8):
+  the dense whole-tensor path has no slice-granularity waste, so the residual gap
+  to native (82 vs 129 tok/s, ~1.6×, roughly constant across B) is **pure pager
+  bookkeeping**, not extra PCIe traffic.
+
+### Correctness under batching
+
+`llama-batched` with greedy argmax (`--top-k 1`), 4 parallel sequences, MoE,
+vramer/512 vs resident: all four sequences are identical to each other and
+**byte-identical to the resident baseline** (raw logs
+`correctness_*_np4_greedy.out`). Batched paging perturbs no token.
+
+### Verdict — partially
+
+Batching **partially** rescues VRAMER's throughput case. Amortisation is genuine:
+for both models bytes/token fall with B and aggregate tok/s scales, often faster in
+*ratio* than native. For **dense** it is near-ideal (1/B), and the only thing left
+between VRAMER and native is pager overhead at identical byte volume. For **MoE**
+the amortisation is real but sub-linear — selectivity erosion makes a larger batch
+touch more experts — and it narrows the gap to native from 2.8× to 1.7× without
+closing it. The decisive fact is that **native CPU-offload amortises the same way
+and moves fewer bytes**, so on this hardware it remains faster than VRAMER at every
+B and every budget, and a larger VRAM budget stops helping MoE once B ≥ 2. Batching
+improves VRAMER's standing but does not flip the ordering: the single-stream
+verdict stands, softened, not overturned. VRAMER's throughput win still awaits the
+regime neither of these fit-on-the-card models reaches — a paged set that cannot be
+held resident at all, under a hard VRAM cap, where native offload is not an option.
+
+---
+
 ## Honest interpretation — what is and isn't a win
 
 **Correctness: a win, unconditional.** Every VRAMER row, dense and MoE, at every
@@ -184,8 +304,13 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=86
 cmake --build build -j
 bash examples/llamacpp/adapter/build_fork.sh /tmp/llama.cpp /tmp/llama-vramer-bench
 
-# 2. the whole comparison (both models), pinned to GPU 0
+# 2. the single-stream comparison (both models), pinned to GPU 0
 GPU=0 NPRED=64 bash benchmarks/run_comparison.sh both     # or: dense | moe
+
+# 3. the batched-serving sweep (needs a fork with llama-batched-bench built):
+bash examples/llamacpp/adapter/build_fork.sh /tmp/llama.cpp /tmp/llama-vramer-batched
+cmake --build /tmp/llama-vramer-batched/build -j --target llama-batched-bench
+GPU=0 TG_MAIN=64 TG_LOW=16 REPS=2 bash benchmarks/run_batched.sh both  # or: moe | dense
 ```
 
 Raw per-row logs (llama.cpp stderr incl. the `[VRAMER]` exit summary, the decoded

@@ -1,0 +1,131 @@
+VRAMER batched-serving benchmark   gpu=0  TG_MAIN=64 TG_LOW=16 REPS=2 pp=32(shared)  2026-10-26T15:34:46Z
+tool: llama-batched-bench (default TG pattern; S_TG = pl*tg/t_tg = aggregate decode tok/s)
+upstream (resident/native): /tmp/llama.cpp/build/bin/llama-batched-bench
+vramer fork               : /tmp/llama-vramer-batched/build/bin/llama-batched-bench
+host: QEMU/KVM VM, 2x NVIDIA A2 (SM86), H2D ~5.7 GiB/s (~half nominal PCIe)
+
+############################################################
+# MODEL: moe   (/tmp/models/Qwen1.5-MoE-A2.7B-Chat.Q4_K_M.gguf)
+# host-paged tensors: ffn_(down|gate|up)_exps\.weight=CPU   B sweep: 1 2 4 8 16
+############################################################
+  -- resident --
+  resident       B=1   tg=64   rc=0  S_TG=62.94    tok/s  peakVRAM=10074   MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=10956 MiB
+  resident       B=1   tg=64   rc=0  S_TG=63.07    tok/s  peakVRAM=10074   MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=5357 MiB
+  resident       B=1   tg=16   rc=0  S_TG=62.85    tok/s  peakVRAM=10074   MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=5746 MiB
+  resident       B=2   tg=64   rc=0  S_TG=106.73   tok/s  peakVRAM=10074   MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=5734 MiB
+  resident       B=2   tg=64   rc=0  S_TG=106.83   tok/s  peakVRAM=10074   MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=11574 MiB
+  resident       B=2   tg=16   rc=0  S_TG=105.05   tok/s  peakVRAM=10074   MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=11243 MiB
+  resident       B=4   tg=64   rc=0  S_TG=127.59   tok/s  peakVRAM=10076   MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=5626 MiB
+  resident       B=4   tg=64   rc=0  S_TG=127.54   tok/s  peakVRAM=10076   MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=5480 MiB
+  resident       B=4   tg=16   rc=0  S_TG=127.59   tok/s  peakVRAM=10076   MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=8849 MiB
+  resident       B=8   tg=64   rc=0  S_TG=146.36   tok/s  peakVRAM=10076   MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=5788 MiB
+  resident       B=8   tg=64   rc=0  S_TG=145.85   tok/s  peakVRAM=10076   MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=5968 MiB
+  resident       B=8   tg=16   rc=0  S_TG=146.57   tok/s  peakVRAM=10076   MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=11214 MiB
+  resident       B=16  tg=64   rc=0  S_TG=225.12   tok/s  peakVRAM=10076   MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=5572 MiB
+  resident       B=16  tg=64   rc=0  S_TG=225.13   tok/s  peakVRAM=10076   MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=5690 MiB
+  resident       B=16  tg=16   rc=0  S_TG=227.26   tok/s  peakVRAM=10076   MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=5803 MiB
+  -- cpu-offload --
+  cpu-offload    B=1   tg=64   rc=0  S_TG=7.33     tok/s  peakVRAM=2160    MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=42730 MiB
+  cpu-offload    B=1   tg=64   rc=0  S_TG=7.34     tok/s  peakVRAM=2160    MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=42752 MiB
+  cpu-offload    B=1   tg=16   rc=0  S_TG=7.38     tok/s  peakVRAM=2160    MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=17667 MiB
+  cpu-offload    B=2   tg=64   rc=0  S_TG=8.93     tok/s  peakVRAM=2158    MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=67489 MiB
+  cpu-offload    B=2   tg=64   rc=0  S_TG=8.76     tok/s  peakVRAM=2158    MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=70797 MiB
+  cpu-offload    B=2   tg=16   rc=0  S_TG=8.88     tok/s  peakVRAM=2158    MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=26903 MiB
+  cpu-offload    B=4   tg=64   rc=0  S_TG=10.47    tok/s  peakVRAM=2156    MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=122472 MiB
+  cpu-offload    B=4   tg=64   rc=0  S_TG=10.41    tok/s  peakVRAM=2156    MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=120646 MiB
+  cpu-offload    B=4   tg=16   rc=0  S_TG=10.60    tok/s  peakVRAM=2156    MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=37423 MiB
+  cpu-offload    B=8   tg=64   rc=0  S_TG=13.09    tok/s  peakVRAM=2156    MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=190784 MiB
+  cpu-offload    B=8   tg=64   rc=0  S_TG=12.89    tok/s  peakVRAM=2156    MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=189410 MiB
+  cpu-offload    B=8   tg=16   rc=0  S_TG=13.03    tok/s  peakVRAM=2156    MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=55039 MiB
+  cpu-offload    B=16  tg=64   rc=0  S_TG=17.51    tok/s  peakVRAM=2158    MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=277140 MiB
+  cpu-offload    B=16  tg=64   rc=0  S_TG=17.33    tok/s  peakVRAM=2158    MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=270122 MiB
+  cpu-offload    B=16  tg=16   rc=0  S_TG=18.38    tok/s  peakVRAM=2158    MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=71250 MiB
+  -- vramer/512MiB --
+  vramer/512MiB  B=1   tg=64   rc=0  S_TG=2.72     tok/s  peakVRAM=2672    MiB  H2D(vramer)=117832.00  MiB  hit=36.7  %  pcieRx=122704 MiB
+  vramer/512MiB  B=1   tg=64   rc=0  S_TG=2.58     tok/s  peakVRAM=2672    MiB  H2D(vramer)=117832.00  MiB  hit=36.5  %  pcieRx=122727 MiB
+  vramer/512MiB  B=1   tg=16   rc=0  S_TG=2.64     tok/s  peakVRAM=2672    MiB  H2D(vramer)=41396.00   MiB  hit=40.3  %  pcieRx=47370 MiB
+  vramer/512MiB  B=2   tg=64   rc=0  S_TG=3.48     tok/s  peakVRAM=2670    MiB  H2D(vramer)=189028.00  MiB  hit=36.9  %  pcieRx=199948 MiB
+  vramer/512MiB  B=2   tg=64   rc=0  S_TG=3.53     tok/s  peakVRAM=2670    MiB  H2D(vramer)=189028.00  MiB  hit=37.0  %  pcieRx=194817 MiB
+  vramer/512MiB  B=2   tg=16   rc=0  S_TG=3.46     tok/s  peakVRAM=2670    MiB  H2D(vramer)=58400.00   MiB  hit=39.8  %  pcieRx=64875 MiB
+  vramer/512MiB  B=4   tg=64   rc=0  S_TG=4.57     tok/s  peakVRAM=2668    MiB  H2D(vramer)=284972.00  MiB  hit=39.4  %  pcieRx=294118 MiB
+  vramer/512MiB  B=4   tg=64   rc=0  S_TG=4.57     tok/s  peakVRAM=2668    MiB  H2D(vramer)=284972.00  MiB  hit=39.2  %  pcieRx=293996 MiB
+  vramer/512MiB  B=4   tg=16   rc=0  S_TG=4.53     tok/s  peakVRAM=2668    MiB  H2D(vramer)=82104.00   MiB  hit=41.3  %  pcieRx=87037 MiB
+  vramer/512MiB  B=8   tg=64   rc=0  S_TG=6.53     tok/s  peakVRAM=2668    MiB  H2D(vramer)=387868.00  MiB  hit=43.6  %  pcieRx=406472 MiB
+  vramer/512MiB  B=8   tg=64   rc=0  S_TG=6.56     tok/s  peakVRAM=2668    MiB  H2D(vramer)=387868.00  MiB  hit=43.8  %  pcieRx=396126 MiB
+  vramer/512MiB  B=8   tg=16   rc=0  S_TG=6.63     tok/s  peakVRAM=2668    MiB  H2D(vramer)=106508.00  MiB  hit=44.7  %  pcieRx=107182 MiB
+  vramer/512MiB  B=16  tg=64   rc=0  S_TG=10.29    tok/s  peakVRAM=2670    MiB  H2D(vramer)=467524.00  MiB  hit=49.9  %  pcieRx=488015 MiB
+  vramer/512MiB  B=16  tg=64   rc=0  S_TG=10.42    tok/s  peakVRAM=2670    MiB  H2D(vramer)=467524.00  MiB  hit=49.7  %  pcieRx=478748 MiB
+  vramer/512MiB  B=16  tg=16   rc=0  S_TG=10.40    tok/s  peakVRAM=2670    MiB  H2D(vramer)=127752.00  MiB  hit=49.4  %  pcieRx=129091 MiB
+  -- vramer/2048MiB --
+  vramer/2048MiB B=1   tg=64   rc=0  S_TG=3.23     tok/s  peakVRAM=4208    MiB  H2D(vramer)=83656.00   MiB  hit=52.8  %  pcieRx=84225 MiB
+  vramer/2048MiB B=1   tg=64   rc=0  S_TG=3.33     tok/s  peakVRAM=4208    MiB  H2D(vramer)=83660.00   MiB  hit=52.7  %  pcieRx=86539 MiB
+  vramer/2048MiB B=1   tg=16   rc=0  S_TG=3.26     tok/s  peakVRAM=4208    MiB  H2D(vramer)=32424.00   MiB  hit=52.9  %  pcieRx=35643 MiB
+  vramer/2048MiB B=2   tg=64   rc=0  S_TG=3.28     tok/s  peakVRAM=4206    MiB  H2D(vramer)=188432.00  MiB  hit=37.1  %  pcieRx=198054 MiB
+  vramer/2048MiB B=2   tg=64   rc=0  S_TG=3.36     tok/s  peakVRAM=4206    MiB  H2D(vramer)=188432.00  MiB  hit=37.4  %  pcieRx=187445 MiB
+  vramer/2048MiB B=2   tg=16   rc=0  S_TG=3.44     tok/s  peakVRAM=4206    MiB  H2D(vramer)=57808.00   MiB  hit=40.4  %  pcieRx=52635 MiB
+  vramer/2048MiB B=4   tg=64   rc=0  S_TG=4.45     tok/s  peakVRAM=4204    MiB  H2D(vramer)=284600.00  MiB  hit=39.3  %  pcieRx=300959 MiB
+  vramer/2048MiB B=4   tg=64   rc=0  S_TG=4.56     tok/s  peakVRAM=4204    MiB  H2D(vramer)=284604.00  MiB  hit=39.5  %  pcieRx=297743 MiB
+  vramer/2048MiB B=4   tg=16   rc=0  S_TG=4.46     tok/s  peakVRAM=4204    MiB  H2D(vramer)=81732.00   MiB  hit=41.5  %  pcieRx=81884 MiB
+  vramer/2048MiB B=8   tg=64   rc=0  S_TG=6.26     tok/s  peakVRAM=4204    MiB  H2D(vramer)=387520.00  MiB  hit=43.8  %  pcieRx=401786 MiB
+  vramer/2048MiB B=8   tg=64   rc=0  S_TG=6.32     tok/s  peakVRAM=4204    MiB  H2D(vramer)=387524.00  MiB  hit=44.0  %  pcieRx=395311 MiB
+  vramer/2048MiB B=8   tg=16   rc=0  S_TG=6.62     tok/s  peakVRAM=4204    MiB  H2D(vramer)=106164.00  MiB  hit=44.6  %  pcieRx=114389 MiB
+  vramer/2048MiB B=16  tg=64   rc=0  S_TG=10.56    tok/s  peakVRAM=4206    MiB  H2D(vramer)=467232.00  MiB  hit=50.5  %  pcieRx=476153 MiB
+  vramer/2048MiB B=16  tg=64   rc=0  S_TG=10.40    tok/s  peakVRAM=4206    MiB  H2D(vramer)=467236.00  MiB  hit=50.1  %  pcieRx=481054 MiB
+  vramer/2048MiB B=16  tg=16   rc=0  S_TG=10.67    tok/s  peakVRAM=4206    MiB  H2D(vramer)=127460.00  MiB  hit=50.2  %  pcieRx=134875 MiB
+
+############################################################
+# MODEL: dense   (/tmp/models/qwen2.5-0.5b-instruct-q4_k_m.gguf)
+# host-paged tensors: ffn_(down|gate|up)\.weight=CPU   B sweep: 1 2 4 8
+############################################################
+  -- resident --
+  resident       B=1   tg=64   rc=0  S_TG=212.60   tok/s  peakVRAM=816     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=19 MiB
+  resident       B=1   tg=64   rc=0  S_TG=211.57   tok/s  peakVRAM=816     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=3883 MiB
+  resident       B=1   tg=16   rc=0  S_TG=203.07   tok/s  peakVRAM=814     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=30 MiB
+  resident       B=2   tg=64   rc=0  S_TG=373.57   tok/s  peakVRAM=816     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=3163 MiB
+  resident       B=2   tg=64   rc=0  S_TG=375.29   tok/s  peakVRAM=816     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=19 MiB
+  resident       B=2   tg=16   rc=0  S_TG=338.93   tok/s  peakVRAM=812     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=12 MiB
+  resident       B=4   tg=64   rc=0  S_TG=500.90   tok/s  peakVRAM=816     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=4 MiB
+  resident       B=4   tg=64   rc=0  S_TG=505.50   tok/s  peakVRAM=816     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=3791 MiB
+  resident       B=4   tg=16   rc=0  S_TG=477.94   tok/s  peakVRAM=816     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=3924 MiB
+  resident       B=8   tg=64   rc=0  S_TG=751.22   tok/s  peakVRAM=816     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=5035 MiB
+  resident       B=8   tg=64   rc=0  S_TG=751.81   tok/s  peakVRAM=816     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=19 MiB
+  resident       B=8   tg=16   rc=0  S_TG=718.06   tok/s  peakVRAM=816     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=4 MiB
+  -- cpu-offload --
+  cpu-offload    B=1   tg=64   rc=0  S_TG=15.18    tok/s  peakVRAM=616     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=13231 MiB
+  cpu-offload    B=1   tg=64   rc=0  S_TG=17.07    tok/s  peakVRAM=616     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=15651 MiB
+  cpu-offload    B=1   tg=16   rc=0  S_TG=16.89    tok/s  peakVRAM=616     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=3705 MiB
+  cpu-offload    B=2   tg=64   rc=0  S_TG=35.22    tok/s  peakVRAM=616     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=16188 MiB
+  cpu-offload    B=2   tg=64   rc=0  S_TG=35.48    tok/s  peakVRAM=616     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=11765 MiB
+  cpu-offload    B=2   tg=16   rc=0  S_TG=34.24    tok/s  peakVRAM=616     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=3988 MiB
+  cpu-offload    B=4   tg=64   rc=0  S_TG=65.45    tok/s  peakVRAM=616     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=14509 MiB
+  cpu-offload    B=4   tg=64   rc=0  S_TG=68.77    tok/s  peakVRAM=616     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=15315 MiB
+  cpu-offload    B=4   tg=16   rc=0  S_TG=64.19    tok/s  peakVRAM=616     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=8135 MiB
+  cpu-offload    B=8   tg=64   rc=0  S_TG=128.36   tok/s  peakVRAM=616     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=13749 MiB
+  cpu-offload    B=8   tg=64   rc=0  S_TG=130.55   tok/s  peakVRAM=616     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=15416 MiB
+  cpu-offload    B=8   tg=16   rc=0  S_TG=120.15   tok/s  peakVRAM=616     MiB  H2D(vramer)=-          MiB  hit=-     %  pcieRx=3567 MiB
+  -- vramer/32MiB --
+  vramer/32MiB   B=1   tg=64   rc=0  S_TG=10.43    tok/s  peakVRAM=648     MiB  H2D(vramer)=16604.00   MiB  hit=63.3  %  pcieRx=16621 MiB
+  vramer/32MiB   B=1   tg=64   rc=0  S_TG=10.87    tok/s  peakVRAM=648     MiB  H2D(vramer)=16604.00   MiB  hit=64.0  %  pcieRx=16607 MiB
+  vramer/32MiB   B=1   tg=16   rc=0  S_TG=10.57    tok/s  peakVRAM=648     MiB  H2D(vramer)=4700.00    MiB  hit=63.2  %  pcieRx=5890 MiB
+  vramer/32MiB   B=2   tg=64   rc=0  S_TG=20.56    tok/s  peakVRAM=648     MiB  H2D(vramer)=16604.00   MiB  hit=64.4  %  pcieRx=16664 MiB
+  vramer/32MiB   B=2   tg=64   rc=0  S_TG=22.18    tok/s  peakVRAM=648     MiB  H2D(vramer)=16604.00   MiB  hit=63.1  %  pcieRx=17276 MiB
+  vramer/32MiB   B=2   tg=16   rc=0  S_TG=19.19    tok/s  peakVRAM=648     MiB  H2D(vramer)=4700.00    MiB  hit=66.7  %  pcieRx=5248 MiB
+  vramer/32MiB   B=4   tg=64   rc=0  S_TG=38.01    tok/s  peakVRAM=648     MiB  H2D(vramer)=16604.00   MiB  hit=63.7  %  pcieRx=18907 MiB
+  vramer/32MiB   B=4   tg=64   rc=0  S_TG=39.48    tok/s  peakVRAM=648     MiB  H2D(vramer)=16604.00   MiB  hit=63.7  %  pcieRx=15709 MiB
+  vramer/32MiB   B=4   tg=16   rc=0  S_TG=42.14    tok/s  peakVRAM=648     MiB  H2D(vramer)=4700.00    MiB  hit=62.7  %  pcieRx=5545 MiB
+  vramer/32MiB   B=8   tg=64   rc=0  S_TG=80.69    tok/s  peakVRAM=648     MiB  H2D(vramer)=16604.00   MiB  hit=63.4  %  pcieRx=15178 MiB
+  vramer/32MiB   B=8   tg=64   rc=0  S_TG=83.03    tok/s  peakVRAM=648     MiB  H2D(vramer)=16604.00   MiB  hit=62.7  %  pcieRx=16925 MiB
+  vramer/32MiB   B=8   tg=16   rc=0  S_TG=80.36    tok/s  peakVRAM=648     MiB  H2D(vramer)=4700.00    MiB  hit=62.7  %  pcieRx=5500 MiB
+  -- vramer/64MiB --
+  vramer/64MiB   B=1   tg=64   rc=0  S_TG=11.35    tok/s  peakVRAM=680     MiB  H2D(vramer)=16344.00   MiB  hit=63.3  %  pcieRx=17787 MiB
+  vramer/64MiB   B=1   tg=64   rc=0  S_TG=10.81    tok/s  peakVRAM=680     MiB  H2D(vramer)=16344.00   MiB  hit=63.4  %  pcieRx=16263 MiB
+  vramer/64MiB   B=1   tg=16   rc=0  S_TG=9.89     tok/s  peakVRAM=680     MiB  H2D(vramer)=4632.00    MiB  hit=65.9  %  pcieRx=5549 MiB
+  vramer/64MiB   B=2   tg=64   rc=0  S_TG=19.76    tok/s  peakVRAM=680     MiB  H2D(vramer)=16344.00   MiB  hit=65.0  %  pcieRx=17936 MiB
+  vramer/64MiB   B=2   tg=64   rc=0  S_TG=19.88    tok/s  peakVRAM=680     MiB  H2D(vramer)=16344.00   MiB  hit=64.9  %  pcieRx=15233 MiB
+  vramer/64MiB   B=2   tg=16   rc=0  S_TG=18.38    tok/s  peakVRAM=680     MiB  H2D(vramer)=4632.00    MiB  hit=65.7  %  pcieRx=4658 MiB
+  vramer/64MiB   B=4   tg=64   rc=0  S_TG=39.16    tok/s  peakVRAM=680     MiB  H2D(vramer)=16344.00   MiB  hit=64.1  %  pcieRx=16089 MiB
+  vramer/64MiB   B=4   tg=64   rc=0  S_TG=37.77    tok/s  peakVRAM=680     MiB  H2D(vramer)=16344.00   MiB  hit=64.9  %  pcieRx=17407 MiB
+  vramer/64MiB   B=4   tg=16   rc=0  S_TG=39.51    tok/s  peakVRAM=680     MiB  H2D(vramer)=4632.00    MiB  hit=63.9  %  pcieRx=5496 MiB
+  vramer/64MiB   B=8   tg=64   rc=0  S_TG=75.28    tok/s  peakVRAM=680     MiB  H2D(vramer)=16344.00   MiB  hit=63.9  %  pcieRx=16896 MiB
+  vramer/64MiB   B=8   tg=64   rc=0  S_TG=71.66    tok/s  peakVRAM=680     MiB  H2D(vramer)=16344.00   MiB  hit=64.9  %  pcieRx=18908 MiB
+  vramer/64MiB   B=8   tg=16   rc=0  S_TG=81.97    tok/s  peakVRAM=680     MiB  H2D(vramer)=4632.00    MiB  hit=63.5  %  pcieRx=5298 MiB

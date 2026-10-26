@@ -1,0 +1,2 @@
+0.00.861.818 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.00.984.194 W llama_model_loader: tensor overrides to CPU are used with mmap enabled - consider using --load-mode none for better performance

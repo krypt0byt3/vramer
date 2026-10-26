@@ -1,0 +1,13 @@
+0.00.824.658 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.00.937.054 W llama_model_loader: tensor overrides to CPU are used with mmap enabled - consider using --load-mode none for better performance
+[VRAMER] ENABLED: paging weights from '/tmp/models/Qwen1.5-MoE-A2.7B-Chat.Q4_K_M.gguf' through a 2048 MiB budget (page 4 MiB, 512 slots)
+
+[VRAMER] ===== weight paging summary =====
+[VRAMER] paged weight set (host, NOT resident in VRAM): 7920.00 MiB across 72 tensors
+[VRAMER] VRAM budget: 2048.00 MiB (page 4.00 MiB, 512 slots) -- SMALLER than paged set
+[VRAMER] copies served from VRAMER: 1365  (of which 1365 were MoE expert stacks)
+[VRAMER] bytes streamed (active only): 51469.74 MiB
+[VRAMER] MoE: 28101 active-expert slices paged; a full-stack copy would have moved 150119.06 MiB -> streamed 34.3% of that
+[VRAMER] pager: hits=13752 misses=17074 hit_rate=44.6% evictions=26029
+[VRAMER] bytes_h2d=106164.00 MiB  <- real host->device paging traffic
+[VRAMER] ==================================
