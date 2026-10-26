@@ -15,15 +15,23 @@ Paging an oversized dense model for single-stream decode is PCIe-bound — see
    neutral-but-free (hit rate 0 → ~99%) for an already-pipelined, PCIe-bound scan.
    *Remaining:* push the same layer-ahead overlap into the llama.cpp adapter itself
    (currently node-granular with a blocking gather).
-2. 🟡 **A real MoE demo (Qwen1.5-MoE-A2.7B).** *Selectivity + correctness done;
-   speed pending.* The llama.cpp hook now pages **only the active experts** per
-   token (reads the `MUL_MAT_ID` routing ids). Proven: ~90% of the model on host
-   through a 0.5 GiB budget, **byte-identical** output, ~7.4% of the expert set
-   streamed/token (13.5× less than dense-equivalent), hit-rate 36→70% with budget
-   (real MoE locality). **Not yet:** speed — decode is 3–8% of resident because the
-   adapter pages experts *synchronously* with no overlap. Closing that needs async
-   double-buffered expert prefetch (the adapter half of #1). See
+2. 🟢 **A real MoE demo (Qwen1.5-MoE-A2.7B).** *Selectivity + correctness done;
+   speed improved, floor documented.* The llama.cpp hook pages **only the active
+   experts** per token (reads the `MUL_MAT_ID` routing ids): ~90% of the model on
+   host through a 0.5 GiB budget, **byte-identical**, ~7.4% streamed/token (13.5×
+   less than dense), hit-rate 36→70% with budget. Overlapping the scattered
+   expert-slice transfers then recovered **+26–39% decode at tight budgets**
+   (512 MiB 2.89→4.01 tok/s). **Remaining floor (honest):** ~510–590 MiB of active
+   experts cross PCIe per token → ~20 tok/s hard ceiling for this 14 B model; and
+   the pager's page-granular staging currently hits only ~4 of ~12 GiB/s. *Next
+   lever:* multi-worker async staging + expert-sized pages (item 3a). Detail in
    `examples/llamacpp/README_MOE.md`.
+
+3a. **Faster pager staging** (surfaced by #2). The page-granular path
+    (acquire→wait_on→D2D per page, single prefetch worker) achieves only ~4 GiB/s of
+    the A2's ~12 GiB/s wall. Multi-worker async staging and a page size matched to
+    the workload's natural unit (the ~1.8 MiB expert slice) should reclaim much of
+    the gap toward the wire — the highest-leverage *core* follow-up.
 3. **Compression-on-wire (nvCOMP).** Being PCIe-bound, compressing weights ~2×
    before H2D and decompressing on-GPU is a near-direct 2× to effective bandwidth.
 

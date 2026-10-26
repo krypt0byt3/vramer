@@ -107,12 +107,46 @@ at **3–8% of the 62.9 tok/s resident baseline** — a ratio similar to the den
 wall (the prior 0.5B dense demo was 208 → 9.3 tok/s, 4.5%).
 
 Why: even at 7.4% selectivity, the active experts are still **~510 MiB/token** of
-real H2D traffic for this 14 B model, and this adapter pages **synchronously,
-node-by-node, with no compute/transfer overlap** (as its parent README states,
-it is a correctness/mechanism path). That makes decode PCIe-and-stall-bound. The
-trend (bigger budget → higher hit-rate → less `bytes_h2d` → faster) shows the
-headroom: a throughput-optimized path (async double-buffered expert prefetch
-overlapped with the attention/shared-expert compute, page sizing matched to the
-~1.6–3 MiB expert slice) is what would turn the confirmed *byte* advantage into a
-*speed* advantage. That optimization is future work; the numbers here are the
-honest current state.
+real H2D traffic for this 14 B model. The table above is the original
+**synchronous** baseline; the active-expert runs below improve on it.
+
+### Overlapped expert transfers (shipped)
+
+The active experts of a token are usually a few scattered slices of the 60-expert
+stack → several short consecutive runs. The original path paged each run with its
+own blocking sync, so a run's H2D could not start until the previous run was fully
+resident. The hook now queues every run's acquire/D2D on the paging stream
+back-to-back and **blocks once** at the end, so the slice transfers pipeline.
+Residency and selectivity are unchanged; output stays **byte-identical**.
+
+Measured (A2/SM86, same model, greedy, 96 decode tokens, 2 MiB page / LRU):
+
+| VRAM budget | synchronous tok/s | overlapped tok/s | change |
+|---|---|---|---|
+| 512 MiB | 2.89 | **4.01** | **+39%** |
+| 2048 MiB | 3.85 | **4.86** | **+26%** |
+| 4096 MiB | ~6.7 | ~6.9 | ~0 (little transfer left to hide) |
+
+`bytes_h2d` is identical sync-vs-overlap at each budget — the same traffic moves in
+less wall time, a clean overlap win, not a traffic change. The gain is largest at
+tight budgets (decode H2D-dominated) and vanishes once the hit-rate is high enough
+that there's little transfer left to hide.
+
+**What overlap does *not* fix — the floor.** Two limits remain, reported honestly:
+
+1. *Compulsory bandwidth.* ~510–590 MiB of active experts must cross PCIe per
+   token. Even at the A2's practical wall (~12 GiB/s) that's ~48 ms/token →
+   **~20 tok/s absolute ceiling** for this 14 B model, ~3× below the 62.9 tok/s
+   resident path. PCIe bandwidth caps how far selectivity can take you.
+2. *Staging throughput.* Achieved H2D is only ~3.7–4.6 GiB/s — below the wire —
+   because the pager's page-granular synchronous staging (acquire→wait_on→D2D per
+   2 MiB page, single prefetch worker) plus the compulsory per-token routing-id
+   `ggml_backend_synchronize` sit in the path. Multi-worker async staging and a
+   page size matched to the ~1.8 MiB expert slice are the next lever toward the
+   wire — future work.
+
+Intra-layer overlap with the *same* layer's attention/shared-expert compute is
+**not** available at this injection point: recovering the routing ids needs a
+backend sync that drains that layer's compute first, so there is no same-layer work
+left to hide the expert H2D behind. Cross-layer speculative prefetch is impossible
+by data dependency (layer N+1's routing is unknown until its router runs).

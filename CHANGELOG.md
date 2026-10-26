@@ -23,16 +23,22 @@ All notable changes to VRAMER are documented here. Format follows
   0.5 GiB budget, byte-identical output, ~7.4% of the expert set streamed per token
   (13.5× less than dense-equivalent), hit-rate 36→70% with budget. Added a
   `VRAMER_EVICT` knob (LRU suits MoE's popular-expert reuse).
+- **MoE expert-transfer overlap** — the hook now queues the (usually scattered)
+  active-expert slice transfers back-to-back on the paging stream and blocks once,
+  instead of a blocking sync per run. Byte-identical; **+26–39% decode at tight
+  budgets** (512 MiB 2.89→4.01 tok/s; 2048 MiB 3.85→4.86), a wash once the hit-rate
+  is high. Same `bytes_h2d` — same traffic, less wall time.
 
 ### Notes
 - Measured honestly: prefetch-ahead converts demand misses to hits (0 → ~99%) but
   for an already-pipelined consumer the RAM/pinned scan is PCIe-bandwidth-bound, so
   it does not beat the wire; the wall-clock payoff appears against a blocking consumer.
-- MoE paging proves the *selectivity + correctness* half of the thesis, **not** the
-  *speed* half yet: decode is 3–8% of resident because the adapter pages experts
-  synchronously with no compute/transfer overlap. Converting the proven byte
-  advantage into a speed advantage needs async double-buffered expert prefetch —
-  tracked in the roadmap.
+- MoE paging proves *selectivity + correctness* and now part of *speed*: overlapping
+  the expert-slice transfers recovers +26–39% at tight budgets. A hard floor remains
+  — ~510–590 MiB of active experts cross PCIe per token, so this 14 B model is capped
+  near ~20 tok/s vs 62.9 resident; and the pager's page-granular staging currently
+  achieves only ~4 GiB/s of the ~12 GiB/s wall (multi-worker async staging is the
+  next lever). See `examples/llamacpp/README_MOE.md`.
 
 ## [0.2.0] — 2026-10-25
 
