@@ -47,7 +47,7 @@ VRAMER limitation — every offloading approach (DeepSpeed ZeRO-Infinity, FSDP,
 3. **Shrink the spill**: raise the budget, or page only the big tensors (keep embeddings/norms/attention resident, page the FFN — the FFN is ~⅔ of the weights).
 4. **MRU eviction** (`--eviction mru`). For the cyclic layer scan, LRU gives **0% reuse**; MRU keeps a stable resident prefix (hit rate ≈ resident fraction). Use MRU whenever you page.
 5. **Pinned source** (`--source pinned`, or a pinned borrowed source). Removes the CPU source→staging copy. Big win **if** you're copy-bound — `vramer probe` tells you (if `h2d_pinned` ≫ `h2d_pageable`, pin; if they're equal you're bus-bound and pinning won't help).
-6. **Prefetch** (`--prefetch-workers 1 --prefetch-ahead N`). Hides transfer latency behind compute. Helps compute-bound / predictable access; little for trivial single-stream streaming.
+6. **Prefetch / compute overlap** (`--prefetch-workers 1 --prefetch-ahead N`). Keeps the next pages loading while the current page computes, so the demand `acquire` hits instead of stalling on a cold transfer. **Measured** (8 GiB / 4 GiB cyclic scan, 2× A2): against a *blocking* consumer (`--sync-per-page`, which drains the compute stream each page) overlap is **~2×** (2.6 → 5.7 GiB/s); against an already-pipelined consumer it's neutral on wall-clock once you're at the PCIe wire ceiling, but still lifts the demand hit rate **0% → ~99%**. The payoff is large exactly when your consumer serializes transfer and compute; free-but-neutral once bandwidth-bound.
 7. **Multi-GPU** (`--gpus 0,1`). Pool VRAM and sum bandwidth; with NVLink, stream peer-to-peer instead of over the host bus.
 8. **Page size.** 64 MiB is the measured sweet spot on Ampere; 16 MiB loses ~10% to per-transfer overhead.
 

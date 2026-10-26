@@ -7,14 +7,17 @@ Paging an oversized dense model for single-stream decode is PCIe-bound — see
 
 ## Tier 1 — biggest leverage
 
-1. **Prefetch/compute overlap (double-buffering) in the llama.cpp adapter.** The
-   gather is currently a blocking sync — H2D and compute are serialized. Overlapping
-   next-layer H2D with the current layer's matmul hides transfer latency behind
-   compute already being paid for. Directly improves the measured ~9.3 tok/s paged
-   decode; changes no physics-level limit. **In progress.**
-2. **A real MoE demo (Mixtral-8x7B / Qwen-MoE).** Only active experts stream per
-   token (`moe_active_fraction` ≪ 1), so the locality wall mostly doesn't apply —
-   the differentiated story. The planner already models this.
+1. ✅ **Prefetch/compute overlap (double-buffering).** *Done.* The pager's
+   `acquire()` already returns an async lease and `bench` already issues
+   `prefetch_async` ahead of the demand cursor, so transfer overlaps compute. Added
+   the missing GPU regression test (`prefetch_overlap`) and an honest measurement
+   harness (`bench --sync-per-page`). Measured ~**2× vs a blocking consumer**;
+   neutral-but-free (hit rate 0 → ~99%) for an already-pipelined, PCIe-bound scan.
+   *Remaining:* push the same layer-ahead overlap into the llama.cpp adapter itself
+   (currently node-granular with a blocking gather).
+2. 🔄 **A real MoE demo (Qwen-MoE / Mixtral-8x7B).** *In progress.* Only active
+   experts stream per token (`moe_active_fraction` ≪ 1), so the locality wall mostly
+   doesn't apply — the differentiated story. The planner already models this.
 3. **Compression-on-wire (nvCOMP).** Being PCIe-bound, compressing weights ~2×
    before H2D and decompressing on-GPU is a near-direct 2× to effective bandwidth.
 
