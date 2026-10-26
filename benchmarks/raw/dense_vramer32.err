@@ -1,30 +1,30 @@
-0.00.100.895 I llama_completion: llama backend init
-0.00.100.932 I llama_completion: load the model and apply lora adapter, if any
-0.01.159.526 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
-0.01.316.801 W llama_model_loader: tensor overrides to CPU are used with mmap enabled - consider using --load-mode none for better performance
-0.01.695.471 I cmn          init: llama threadpool init, n_threads = 24
+0.00.099.137 I llama_completion: llama backend init
+0.00.099.179 I llama_completion: load the model and apply lora adapter, if any
+0.01.241.082 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.01.334.689 W llama_model_loader: tensor overrides to CPU are used with mmap enabled - consider using --load-mode none for better performance
+0.01.625.096 I cmn          init: llama threadpool init, n_threads = 24
 [VRAMER] ENABLED: paging weights from '/tmp/models/qwen2.5-0.5b-instruct-q4_k_m.gguf' through a 32 MiB budget (page 4 MiB, 8 slots)
-0.02.047.413 I 
-0.02.047.645 I system_info: n_threads = 24 (n_threads_batch = 24) / 24 | CUDA : ARCHS = 860 | USE_GRAPHS = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
-0.02.047.645 I 
-0.02.047.838 I sampler seed: 4294967295
-0.02.047.869 I sampler params: 
+0.01.929.179 I 
+0.01.929.398 I system_info: n_threads = 24 (n_threads_batch = 24) / 24 | CUDA : ARCHS = 860 | USE_GRAPHS = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
+0.01.929.406 I 
+0.01.929.574 I sampler seed: 4294967295
+0.01.929.613 I sampler params: 
 	repeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 0.000
 	dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
 	top_k = 40, top_p = 0.950, min_p = 0.050, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.000
 	mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
-0.02.047.883 I sampler chain: logits -> ?penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> greedy 
-0.02.047.885 I generate: n_ctx = 32768, n_batch = 2048, n_predict = 64, n_keep = 0
-0.02.047.886 I 
-0.09.436.274 I common_perf_print:    sampling time =      64.25 ms
-0.09.436.277 I common_perf_print:    samplers time =      12.26 ms /    69 tokens
-0.09.436.287 I common_perf_print:        load time =    1016.88 ms
-0.09.436.289 I common_perf_print: prompt eval time =     146.99 ms /     5 tokens (   29.40 ms per token,    34.02 tokens per second)
-0.09.436.292 I common_perf_print:        eval time =    7169.16 ms /    63 runs   (  113.80 ms per token,     8.79 tokens per second)
-0.09.436.294 I common_perf_print:       total time =    7388.88 ms /    68 tokens
-0.09.436.296 I common_perf_print: unaccounted time =       8.49 ms /   0.1 %      (total - sampling - prompt eval - eval) / (total)
-0.09.436.297 I common_perf_print:    graphs reused =         62
-0.09.436.298 I common_perf_print:   graph reallocs =          0    /     0        (same size) / (changed size)
+0.01.929.626 I sampler chain: logits -> ?penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> greedy 
+0.01.929.627 I generate: n_ctx = 32768, n_batch = 2048, n_predict = 64, n_keep = 0
+0.01.929.628 I 
+0.08.929.881 I common_perf_print:    sampling time =      57.44 ms
+0.08.929.884 I common_perf_print:    samplers time =      11.54 ms /    69 tokens
+0.08.929.892 I common_perf_print:        load time =     836.20 ms
+0.08.929.894 I common_perf_print: prompt eval time =     116.72 ms /     5 tokens (   23.34 ms per token,    42.84 tokens per second)
+0.08.929.897 I common_perf_print:        eval time =    6819.24 ms /    63 runs   (  108.24 ms per token,     9.24 tokens per second)
+0.08.929.899 I common_perf_print:       total time =    7000.72 ms /    68 tokens
+0.08.929.901 I common_perf_print: unaccounted time =       7.32 ms /   0.1 %      (total - sampling - prompt eval - eval) / (total)
+0.08.929.901 I common_perf_print:    graphs reused =         62
+0.08.929.902 I common_perf_print:   graph reallocs =          0    /     0        (same size) / (changed size)
 
 [VRAMER] ===== weight paging summary =====
 [VRAMER] paged weight set (host, NOT resident in VRAM): 206.12 MiB across 72 tensors
@@ -32,6 +32,6 @@
 [VRAMER] copies served from VRAMER: 4680  (of which 0 were MoE expert stacks)
 [VRAMER] bytes streamed (active only): 13398.06 MiB
 [VRAMER] MoE: 0 active-expert slices paged; a full-stack copy would have moved 0.00 MiB -> streamed 0.0% of that
-[VRAMER] pager: hits=4158 misses=3902 hit_rate=51.6% evictions=5133
-[VRAMER] bytes_h2d=20564.00 MiB  <- real host->device paging traffic
+[VRAMER] pager: hits=4063 misses=3997 hit_rate=50.4% evictions=5227
+[VRAMER] bytes_h2d=20940.00 MiB  <- real host->device paging traffic
 [VRAMER] ==================================

@@ -83,7 +83,10 @@ Large model/engine/checkpoint data is intentionally **not** tracked (`.gitignore
   [`examples/llamacpp/README_MOE.md`](examples/llamacpp/README_MOE.md).
 
 See [`docs/LIBRARY.md`](docs/LIBRARY.md) for the full reference, roadmap, and honest
-limits (paging an oversized model is PCIe-bound — `vramer plan` estimates by how much).
+limits (paging an oversized model is PCIe-bound — `vramer plan` estimates by how much),
+and [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for a measured comparison vs llama.cpp
+`-ngl` / native CPU-offload (where VRAMER wins: correctness, a tunable VRAM ceiling,
+MoE selectivity — and where it ties the PCIe wall for single-stream decode).
 
 ## Docs & community
 

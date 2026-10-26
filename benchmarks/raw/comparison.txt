@@ -1,4 +1,4 @@
-VRAMER comparative benchmark   gpu=0  n_predict=64  prompt="The capital of France is"  2026-10-26T13:32:01Z
+VRAMER comparative benchmark   gpu=0  n_predict=64  prompt="The capital of France is"  2026-10-26T13:47:24Z
 upstream llama.cpp : /tmp/llama.cpp/build/bin/llama-completion
 vramer fork        : /tmp/llama-vramer-bench/build/bin/llama-completion
 host: QEMU/KVM VM, 2x NVIDIA A2 (SM86), H2D ~5.7 GiB/s (~half nominal PCIe)
@@ -7,28 +7,28 @@ host: QEMU/KVM VM, 2x NVIDIA A2 (SM86), H2D ~5.7 GiB/s (~half nominal PCIe)
 # MODEL: dense   (/tmp/models/qwen2.5-0.5b-instruct-q4_k_m.gguf)
 # filter(host tensors): ffn_(down|gate|up)\.weight=CPU
 ############################################################
-resident         rc=0  tok/s=208.35   peakVRAM=1180    MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
-ngl=12           rc=0  tok/s=27.07    peakVRAM=810     MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
-ngl=6            rc=0  tok/s=20.46    peakVRAM=656     MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
-cpu-offload      rc=0  tok/s=16.15    peakVRAM=980     MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
-vramer/16MiB     rc=0  tok/s=8.52     peakVRAM=996     MiB  H2D=22276.00  MiB  hit=49.2  %  streamed=13398.06 MiB
+resident         rc=0  tok/s=208.32   peakVRAM=1180    MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
+ngl=12           rc=0  tok/s=29.05    peakVRAM=810     MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
+ngl=6            rc=0  tok/s=19.67    peakVRAM=656     MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
+cpu-offload      rc=0  tok/s=15.92    peakVRAM=980     MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
+vramer/16MiB     rc=0  tok/s=8.25     peakVRAM=996     MiB  H2D=22244.00  MiB  hit=49.3  %  streamed=13398.06 MiB
     [sanity] vramer/16MiB output BYTE-IDENTICAL to resident
-vramer/32MiB     rc=0  tok/s=8.79     peakVRAM=1012    MiB  H2D=20564.00  MiB  hit=51.6  %  streamed=13398.06 MiB
+vramer/32MiB     rc=0  tok/s=9.24     peakVRAM=1012    MiB  H2D=20940.00  MiB  hit=50.4  %  streamed=13398.06 MiB
     [sanity] vramer/32MiB output BYTE-IDENTICAL to resident
-vramer/64MiB     rc=0  tok/s=10.32    peakVRAM=1044    MiB  H2D=17556.00  MiB  hit=56.1  %  streamed=13398.06 MiB
+vramer/64MiB     rc=0  tok/s=10.97    peakVRAM=1044    MiB  H2D=17824.00  MiB  hit=55.1  %  streamed=13398.06 MiB
     [sanity] vramer/64MiB output BYTE-IDENTICAL to resident
 
 ############################################################
 # MODEL: moe   (/tmp/models/Qwen1.5-MoE-A2.7B-Chat.Q4_K_M.gguf)
 # filter(host tensors): ffn_(down|gate|up)_exps\.weight=CPU
 ############################################################
-resident         rc=0  tok/s=62.37    peakVRAM=13946   MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
-ngl=12           rc=0  tok/s=18.32    peakVRAM=7598    MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
-ngl=6            rc=0  tok/s=14.31    peakVRAM=3964    MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
-cpu-offload      rc=0  tok/s=7.54     peakVRAM=7568    MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
-vramer/256MiB    rc=0  tok/s=1.87     peakVRAM=7824    MiB  H2D=40336.00  MiB  hit=34.7  %  streamed=14263.24 MiB
+resident         rc=0  tok/s=62.44    peakVRAM=13946   MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
+ngl=12           rc=0  tok/s=18.54    peakVRAM=7598    MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
+ngl=6            rc=0  tok/s=10.24    peakVRAM=3964    MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
+cpu-offload      rc=0  tok/s=6.98     peakVRAM=7568    MiB  H2D=-         MiB  hit=-     %  streamed=- MiB
+vramer/256MiB    rc=0  tok/s=2.70     peakVRAM=7824    MiB  H2D=40312.00  MiB  hit=34.9  %  streamed=14263.24 MiB
     [sanity] vramer/256MiB output BYTE-IDENTICAL to resident
-vramer/512MiB    rc=0  tok/s=2.06     peakVRAM=8080    MiB  H2D=39092.00  MiB  hit=35.9  %  streamed=14263.24 MiB
+vramer/512MiB    rc=0  tok/s=2.88     peakVRAM=8080    MiB  H2D=39156.00  MiB  hit=36.1  %  streamed=14263.24 MiB
     [sanity] vramer/512MiB output BYTE-IDENTICAL to resident
-vramer/1024MiB   rc=0  tok/s=2.20     peakVRAM=8592    MiB  H2D=36552.00  MiB  hit=38.6  %  streamed=14263.24 MiB
+vramer/1024MiB   rc=0  tok/s=3.11     peakVRAM=8592    MiB  H2D=36648.00  MiB  hit=38.8  %  streamed=14263.24 MiB
     [sanity] vramer/1024MiB output BYTE-IDENTICAL to resident

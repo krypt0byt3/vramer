@@ -23,6 +23,11 @@ All notable changes to VRAMER are documented here. Format follows
   0.5 GiB budget, byte-identical output, ~7.4% of the expert set streamed per token
   (13.5× less than dense-equivalent), hit-rate 36→70% with budget. Added a
   `VRAMER_EVICT` knob (LRU suits MoE's popular-expert reuse).
+- **`docs/BENCHMARKS.md`** — an honest, reproducible comparison (`benchmarks/run_comparison.sh`
+  + raw logs): VRAMER vs `llama.cpp -ngl` vs native `-ot=CPU` offload vs resident, on a
+  dense and a MoE model, same hardware/run. Finding: VRAMER wins on correctness
+  (byte-identical), a tunable VRAM ceiling, and MoE selectivity (7.5% streamed) — not
+  single-stream decode tok/s, which ties/loses the PCIe wall vs native offload.
 - **MoE expert-transfer overlap** — the hook now queues the (usually scattered)
   active-expert slice transfers back-to-back on the paging stream and blocks once,
   instead of a blocking sync per run. Byte-identical; **+26–39% decode at tight

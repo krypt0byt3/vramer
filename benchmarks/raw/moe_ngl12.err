@@ -1,25 +1,25 @@
-0.00.109.094 I llama_completion: llama backend init
-0.00.109.135 I llama_completion: load the model and apply lora adapter, if any
-0.01.256.473 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
-0.07.214.155 I cmn          init: llama threadpool init, n_threads = 24
-0.08.668.806 I 
-0.08.669.012 I system_info: n_threads = 24 (n_threads_batch = 24) / 24 | CUDA : ARCHS = 860 | USE_GRAPHS = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
-0.08.669.032 I 
-0.08.669.253 I sampler seed: 4294967295
-0.08.669.284 I sampler params: 
+0.00.110.395 I llama_completion: llama backend init
+0.00.110.439 I llama_completion: load the model and apply lora adapter, if any
+0.01.246.966 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.06.665.975 I cmn          init: llama threadpool init, n_threads = 24
+0.07.639.546 I 
+0.07.639.685 I system_info: n_threads = 24 (n_threads_batch = 24) / 24 | CUDA : ARCHS = 860 | USE_GRAPHS = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
+0.07.639.686 I 
+0.07.639.840 I sampler seed: 4294967295
+0.07.639.864 I sampler params: 
 	repeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 0.000
 	dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
 	top_k = 40, top_p = 0.950, min_p = 0.050, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.000
 	mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
-0.08.669.297 I sampler chain: logits -> ?penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> greedy 
-0.08.669.298 I generate: n_ctx = 32768, n_batch = 2048, n_predict = 64, n_keep = 0
-0.08.669.299 I 
-0.10.112.442 I common_perf_print:    sampling time =      23.18 ms
-0.10.112.445 I common_perf_print:    samplers time =       4.77 ms /    28 tokens
-0.10.112.454 I common_perf_print:        load time =    7601.04 ms
-0.10.112.457 I common_perf_print: prompt eval time =     216.23 ms /     5 tokens (   43.25 ms per token,    23.12 tokens per second)
-0.10.112.460 I common_perf_print:        eval time =    1200.77 ms /    22 runs   (   54.58 ms per token,    18.32 tokens per second)
-0.10.112.461 I common_perf_print:       total time =    1443.67 ms /    27 tokens
-0.10.112.463 I common_perf_print: unaccounted time =       3.50 ms /   0.2 %      (total - sampling - prompt eval - eval) / (total)
-0.10.112.464 I common_perf_print:    graphs reused =         21
-0.10.112.465 I common_perf_print:   graph reallocs =          1    /     0        (same size) / (changed size)
+0.07.639.873 I sampler chain: logits -> ?penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> greedy 
+0.07.639.875 I generate: n_ctx = 32768, n_batch = 2048, n_predict = 64, n_keep = 0
+0.07.639.875 I 
+0.09.051.885 I common_perf_print:    sampling time =      31.64 ms
+0.09.051.888 I common_perf_print:    samplers time =       4.89 ms /    28 tokens
+0.09.051.898 I common_perf_print:        load time =    6555.22 ms
+0.09.051.900 I common_perf_print: prompt eval time =     190.81 ms /     5 tokens (   38.16 ms per token,    26.20 tokens per second)
+0.09.051.903 I common_perf_print:        eval time =    1186.57 ms /    22 runs   (   53.94 ms per token,    18.54 tokens per second)
+0.09.051.905 I common_perf_print:       total time =    1412.36 ms /    27 tokens
+0.09.051.906 I common_perf_print: unaccounted time =       3.34 ms /   0.2 %      (total - sampling - prompt eval - eval) / (total)
+0.09.051.907 I common_perf_print:    graphs reused =         21
+0.09.051.908 I common_perf_print:   graph reallocs =          1    /     0        (same size) / (changed size)

@@ -39,8 +39,14 @@ Paging an oversized dense model for single-stream decode is PCIe-bound — see
 
 4. **A proper `ggml_backend_buffer_type` + scheduler hook** to replace the env-flag
    adapter — usable without patching llama.cpp.
-5. **Honest comparative benchmarks** vs `llama.cpp -ngl`, DeepSpeed ZeRO-Infinity,
-   and FSDP CPU-offload on identical hardware.
+5. 🟢 **Honest comparative benchmarks.** *Done for llama.cpp.* `docs/BENCHMARKS.md`
+   compares VRAMER vs `llama.cpp -ngl` partial offload vs native `-ot=CPU` offload vs
+   resident, on dense (Qwen2.5-0.5B) and MoE (Qwen1.5-MoE-A2.7B), same hardware/run.
+   Honest finding: VRAMER's wins are **correctness** (byte-identical through a
+   sub-set budget), an **explicit tunable VRAM ceiling**, and **MoE selectivity**
+   (7.5% streamed) — **not** single-stream decode tok/s, where it ties/loses the PCIe
+   wall vs native offload (expected). *Remaining:* DeepSpeed ZeRO-Infinity / FSDP
+   comparison, and the batched-serving regime where the throughput case actually lives.
 6. **GPUDirect Storage (cuFile) / `DevDaxSource`** — stream straight from NVMe
    (models larger than *RAM*) and the CXL/PMEM tier story. `MemorySource` already
    abstracts the tier.

@@ -73,21 +73,23 @@ Paged/offloaded tensor set: the 72 FFN weights, `ffn_(down|gate|up).weight`,
 
 | config | decode tok/s | peak VRAM (MiB) | real H2D (MiB) | pager hit-rate | byte-identical |
 |---|--:|--:|--:|--:|:--:|
-| resident (`-ngl 99`) | **208.35** | 1180 | — | — | baseline |
-| native `-ngl 12` | 27.07 | 810 | — | — | n/a |
-| native `-ngl 6` | 20.46 | 656 | — | — | n/a |
-| cpu-offload (llama H2D) | 16.15 | 980 | — | — | n/a |
-| vramer / 16 MiB | 8.52 | 996 | 22276 | 49.2 % | ✅ |
-| vramer / 32 MiB | 8.79 | 1012 | 20564 | 51.6 % | ✅ |
-| vramer / 64 MiB | 10.32 | 1044 | 17556 | 56.1 % | ✅ |
+| resident (`-ngl 99`) | **208.32** | 1180 | — | — | baseline |
+| native `-ngl 12` | 29.05 | 810 | — | — | n/a |
+| native `-ngl 6` | 19.67 | 656 | — | — | n/a |
+| cpu-offload (llama H2D) | 15.92 | 980 | — | — | n/a |
+| vramer / 16 MiB | 8.25 | 996 | 22244 | 49.3 % | ✅ |
+| vramer / 32 MiB | 9.24 | 1012 | 20940 | 50.4 % | ✅ |
+| vramer / 64 MiB | 10.97 | 1044 | 17824 | 55.1 % | ✅ |
 
 Notes:
 - **Peak VRAM tracks the budget almost exactly**: 996 → 1012 → 1044 as the budget
   doubles 16 → 32 → 64. The offloaded baseline (cpu-offload) sits at 980; VRAMER
   is essentially "that baseline **plus** its budget". So VRAMER spends *more* peak
   VRAM than native cpu-offload, by exactly the budget you asked for.
-- **Bigger budget → higher hit-rate → fewer bytes re-paged → faster** (49 % → 56 %
-  hit, 22.3 → 17.6 GiB H2D, 8.5 → 10.3 tok/s): the pager behaves as designed.
+- **Bigger budget → higher hit-rate → fewer bytes re-paged → faster** (49 % → 55 %
+  hit, 22.2 → 17.8 GiB H2D, 8.3 → 11.0 tok/s): the pager behaves as designed.
+- The overlap change only affects the MoE expert path; the dense whole-tensor path
+  is behaviorally identical, so these rows match the pre-overlap run within variance.
 - All three VRAMER rows are **byte-identical** to the resident baseline.
 
 ## MoE — Qwen1.5-MoE-A2.7B-Chat Q4_K_M (60 experts/layer, 4 active)
@@ -97,29 +99,38 @@ Paged/offloaded tensor set: the per-layer expert stacks,
 256/512/1024 MiB are all **smaller** than that set.
 22 decode tokens, greedy, seed 1.
 
+VRAMER rows use the **overlap-enabled** adapter (current `master` — the active
+expert-slice transfers are pipelined behind a single sync per tensor).
+
 | config | decode tok/s | peak VRAM (MiB) | real H2D (MiB) | pager hit-rate | byte-identical |
 |---|--:|--:|--:|--:|:--:|
-| resident (`-ngl 99`) | **62.37** | 13946 | — | — | baseline |
-| native `-ngl 12` | 18.32 | 7598 | — | — | n/a |
-| native `-ngl 6` | 14.31 | 3964 | — | — | n/a |
-| cpu-offload (llama H2D) | 7.54 | 7568 | — | — | n/a |
-| vramer / 256 MiB | 1.87 | 7824 | 40336 | 34.7 % | ✅ |
-| vramer / 512 MiB | 2.06 | 8080 | 39092 | 35.9 % | ✅ |
-| vramer / 1024 MiB | 2.20 | 8592 | 36552 | 38.6 % | ✅ |
+| resident (`-ngl 99`) | **62.44** | 13946 | — | — | baseline |
+| native `-ngl 12` | 18.54 | 7598 | — | — | n/a |
+| native `-ngl 6` | 10.24 | 3964 | — | — | n/a |
+| cpu-offload (llama H2D) | 6.98 | 7568 | — | — | n/a |
+| vramer / 256 MiB | 2.70 | 7824 | 40312 | 34.9 % | ✅ |
+| vramer / 512 MiB | 2.88 | 8080 | 39156 | 36.1 % | ✅ |
+| vramer / 1024 MiB | 3.11 | 8592 | 36648 | 38.8 % | ✅ |
 
 Notes:
 - **Selectivity (the MoE thesis, confirmed):** across the 22-token run VRAMER
   paged only the active experts — **14263 MiB streamed vs 190080 MiB a full
   expert-stack copy would have moved = 7.5 %**. Only the routed 4-of-60 experts
   per layer are brought in. This is the property a dense model does **not** have.
-- **But native cpu-offload is already selective too**, and on this VM it is both
-  faster (7.54 vs ~2 tok/s) and slightly lower peak VRAM (7568 vs 7824–8592) than
-  VRAMER. VRAMER's `acquire → wait → D2D-gather → release → cudaDeviceSynchronize`
-  per tensor per layer serializes the per-token path; llama's plain `memcpy`
-  pipelines better. The pager also re-pages at 4 MiB granularity, so its real H2D
-  (36–40 GiB) is ~2.6× the active bytes (14.3 GiB) — the 35–39 % hit-rate is the
-  cost of a budget far smaller than the per-token active working set.
-- All three VRAMER rows are **byte-identical** to the resident baseline.
+- **Expert-transfer overlap** (shipped, in these numbers) was measured in a
+  controlled same-build before/after at **+26–39%** decode at tight budgets — same
+  bytes, less wall time. See
+  [`examples/llamacpp/README_MOE.md`](../examples/llamacpp/README_MOE.md).
+- **Even so, native cpu-offload still leads on this VM** (~7 vs ~3 tok/s) at
+  slightly lower peak VRAM (7568 vs 7824–8592): llama's plain `memcpy` of the same
+  tensor set pipelines better, and VRAMER still pays per-token pager bookkeeping +
+  the compulsory routing-id device sync, and re-pages at 4 MiB granularity, so its
+  real H2D (36–40 GiB) is ~2.6× the active bytes (14.3 GiB) at these sub–working-set
+  budgets. Faster pager staging is the next core lever (ROADMAP 3a).
+- All VRAMER rows are **byte-identical** to the resident baseline.
+- **Run-to-run variance:** absolute tok/s moves ~10–30% between runs on this
+  passthrough VM, so compare rows **within one run** — all rows in this doc are from
+  a single fresh run on current `master` — not across runs or against other reports.
 
 ---
 
