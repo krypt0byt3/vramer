@@ -22,16 +22,23 @@ Paging an oversized dense model for single-stream decode is PCIe-bound — see
    less than dense), hit-rate 36→70% with budget. Overlapping the scattered
    expert-slice transfers then recovered **+26–39% decode at tight budgets**
    (512 MiB 2.89→4.01 tok/s). **Remaining floor (honest):** ~510–590 MiB of active
-   experts cross PCIe per token → ~20 tok/s hard ceiling for this 14 B model; and
-   the pager's page-granular staging currently hits only ~4 of ~12 GiB/s. *Next
-   lever:* multi-worker async staging + expert-sized pages (item 3a). Detail in
+   experts cross PCIe per token → ~20 tok/s hard ceiling for this 14 B model, set by
+   the ~5.7 GiB/s PCIe uplink itself (not pager software — see 3a). Detail in
    `examples/llamacpp/README_MOE.md`.
 
-3a. **Faster pager staging** (surfaced by #2). The page-granular path
-    (acquire→wait_on→D2D per page, single prefetch worker) achieves only ~4 GiB/s of
-    the A2's ~12 GiB/s wall. Multi-worker async staging and a page size matched to
-    the workload's natural unit (the ~1.8 MiB expert slice) should reclaim much of
-    the gap toward the wire — the highest-leverage *core* follow-up.
+3a. ✅ **Faster pager staging** (surfaced by #2). *Investigated and resolved —
+    honest negative.* Hypothesis was that page-granular staging left the wire idle
+    (a ~4 GiB/s symptom). Added a concurrent transfer-stream pool
+    (`PagerConfig::transfer_streams`, `bench --transfer-streams`) so demand loads and
+    prefetch workers issue H2D on distinct streams instead of serializing on one.
+    **Measured: no win on this A2/VM** — a *single* async stream already saturates
+    the ~5.7 GiB/s uplink once prefetch overlaps the source→pinned copy (steady state
+    ~5.5–5.7 GiB/s at 1, 2, or 4 streams); the ~4 GiB/s was a cold first-launch
+    outlier, not a steady-state ceiling. Multiple same-direction H2D copies share one
+    uplink and can't exceed it. The knob is correct and zero-cost at its default (1)
+    and would pay off only where a single stream can't fill the link (multi-rail /
+    higher-bandwidth). **Takeaway: the bottleneck is the physical link, not staging
+    software → see #10.**
 3. **Compression-on-wire (nvCOMP).** Being PCIe-bound, compressing weights ~2×
    before H2D and decompressing on-GPU is a near-direct 2× to effective bandwidth.
 
@@ -45,8 +52,15 @@ Paging an oversized dense model for single-stream decode is PCIe-bound — see
    Honest finding: VRAMER's wins are **correctness** (byte-identical through a
    sub-set budget), an **explicit tunable VRAM ceiling**, and **MoE selectivity**
    (7.5% streamed) — **not** single-stream decode tok/s, where it ties/loses the PCIe
-   wall vs native offload (expected). *Remaining:* DeepSpeed ZeRO-Infinity / FSDP
-   comparison, and the batched-serving regime where the throughput case actually lives.
+   wall vs native offload (expected). The **batched-serving** regime is now measured
+   too (`docs/BENCHMARKS.md`, "Batched serving"): per-step weight-load amortization is
+   real — aggregate tok/s scales with batch size B and bytes/token fall (dense tracks
+   1/B near-ideally; MoE sub-linearly as selectivity erodes). Honest verdict:
+   batching *partially* rescues the case but never overtakes native CPU-offload on
+   this VM, because native amortizes the same selective copy and moves ~1.7× fewer
+   bytes. The unambiguous throughput win still awaits a model that **cannot fit
+   resident at all** (where native offload isn't an option). *Remaining:* DeepSpeed
+   ZeRO-Infinity / FSDP comparison, and that too-big-to-fit regime.
 6. **GPUDirect Storage (cuFile) / `DevDaxSource`** — stream straight from NVMe
    (models larger than *RAM*) and the CXL/PMEM tier story. `MemorySource` already
    abstracts the tier.
@@ -56,8 +70,11 @@ Paging an oversized dense model for single-stream decode is PCIe-bound — see
 7. **QLoRA fine-tuning demo** — frozen 4-bit base is read-only and layer-ordered.
 8. **vLLM KV-connector experiment** (`OffloadingConnector` / `KVConnectorBase_V1`).
 9. **Auto-NUMA detection**; **TensorRT-LLM adapter**.
-10. **Hardware investigation** — the A2 rig measured ~5.7 vs nominal ~12 GiB/s H2D,
-    likely VM passthrough; bare metal may give a free ~2×.
+10. **Hardware investigation** *(now the clearest single-stream lever, per 3a)* — the
+    A2 rig measured ~5.7 vs nominal ~12 GiB/s H2D, and 3a proved one stream already
+    saturates that ~5.7 GiB/s, so the ceiling is the link, not the pager. The gap is
+    likely VM/QEMU passthrough; bare metal (or PCIe ACS/relaxed-ordering tuning) may
+    give a near-free ~2× to every paged workload at once.
 
 See the [project wiki](https://github.com/krypt0byt3/vramer/wiki) for the full
 reasoning behind each item.

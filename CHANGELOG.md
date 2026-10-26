@@ -7,6 +7,25 @@ All notable changes to VRAMER are documented here. Format follows
 ## [Unreleased]
 
 ### Added
+- **Concurrent transfer-stream pool** (`PagerConfig::transfer_streams`,
+  `bench --transfer-streams N`) — the pager round-robins H2D (and D2H writeback)
+  across a pool of non-blocking CUDA streams so demand loads and prefetch workers
+  overlap on the wire instead of serializing on one stream. Default `1` preserves
+  exact prior behavior. Each copy records its slot `load_done` and the staging
+  `h2d_done` on the stream that issued it; `synchronize()`/destructor drain all
+  streams. `prefetch_overlap` extended to byte-verify cyclic scans under 2 and 4
+  concurrent streams. **Measured no win on the A2/VM rig** — one async stream already
+  saturates the ~5.7 GiB/s uplink; the knob stands to help only where a single stream
+  can't fill the link (multi-rail / higher-bandwidth). See `ROADMAP.md` item 3a.
+- **Batched-serving benchmark** (`benchmarks/run_batched.sh`, raw logs under
+  `benchmarks/raw/batched/`, new "Batched serving" section in `docs/BENCHMARKS.md`) —
+  sweeps batch size B via `llama-batched-bench` and reports aggregate decode tok/s and
+  H2D bytes/generated-token for resident / native CPU-offload / VRAMER. Finding:
+  per-step weight-load amortization is real (bytes/token fall with B; dense ≈ 1/B,
+  MoE sub-linearly as selectivity erodes), so batching *partially* rescues the
+  throughput case — but VRAMER never overtakes native offload on this VM, which
+  amortizes the same selective copy and moves ~1.7× fewer bytes. Output stays
+  byte-identical to resident across the batch.
 - **`prefetch_overlap` test** — GPU regression coverage for the prefetch/compute
   overlap (double-buffering) path: a cyclic scan through a cache smaller than the
   working set, byte-verifying every acquired page (including prefetched, evicted,
