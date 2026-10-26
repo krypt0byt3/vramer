@@ -64,12 +64,13 @@ private:
     std::uint64_t size_ = 0;
 };
 
-PagerConfig config(unsigned workers) {
+PagerConfig config(unsigned workers, unsigned transfer_streams = 1) {
     PagerConfig cfg;
     cfg.gpu = 0;
     cfg.vram_budget = kBudget;
     cfg.page_size = kPage;
     cfg.staging_buffers = 4;
+    cfg.transfer_streams = transfer_streams;
     cfg.prefetch_workers = workers;
     // LRU is the classic scan pathology: a cyclic scan larger than the cache
     // gets ~0% demand reuse. That makes it the cleanest demonstration of
@@ -104,8 +105,9 @@ void verify_page(const PageLease& lease, std::uint64_t page, cudaStream_t stream
 // Run a cyclic scan of all pages for kPasses. When prefetch_ahead > 0 (and a
 // worker exists) it stays that many pages ahead of the demand cursor -- the
 // double-buffering mode. Returns the final stats; verifies every page's bytes.
-PagerStats run_scan(unsigned workers, std::uint64_t prefetch_ahead, cudaStream_t stream) {
-    CudaPager pager(std::make_shared<PatternSource>(kSource), config(workers));
+PagerStats run_scan(unsigned workers, std::uint64_t prefetch_ahead, cudaStream_t stream,
+                    unsigned transfer_streams = 1) {
+    CudaPager pager(std::make_shared<PatternSource>(kSource), config(workers, transfer_streams));
     CHECK(pager.page_count() == kPages);
     std::vector<std::uint8_t> host;
 
@@ -151,6 +153,24 @@ void test_overlap_correct_and_hits(cudaStream_t stream) {
     std::cout << "  [ok] overlap path is byte-correct and raises the hit rate\n";
 }
 
+// Multiple concurrent transfer streams + multiple prefetch workers must stay
+// byte-correct: independent loads overlap on distinct streams, each recording
+// its own slot's load_done on the stream that issued the copy. Every acquire is
+// byte-verified inside run_scan(); the cross-stream load_done/wait_on handshake
+// is what we are stressing here.
+void test_multistream_correct(cudaStream_t stream) {
+    for (unsigned n : {2u, 4u}) {
+        const PagerStats s = run_scan(/*workers=*/n, kPrefetchAhead, stream,
+                                      /*transfer_streams=*/n);
+        std::cout << "  streams=" << n << " workers=" << n
+                  << " : hits=" << s.hits << " misses=" << s.misses
+                  << " prefetches=" << s.prefetches
+                  << " hit_rate=" << 100.0 * s.hit_rate() << "%\n";
+        CHECK(s.hits + s.misses == kPages * kPasses);  // every demand accounted for
+    }
+    std::cout << "  [ok] multi-stream overlap path is byte-correct\n";
+}
+
 } // namespace
 
 int main() {
@@ -164,6 +184,7 @@ int main() {
     cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking);
 
     test_overlap_correct_and_hits(stream);
+    test_multistream_correct(stream);
 
     cudaStreamDestroy(stream);
     std::cout << "prefetch-overlap test passed\n";

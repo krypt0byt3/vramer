@@ -4,6 +4,7 @@
 
 #include <cuda_runtime_api.h>
 
+#include <atomic>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
@@ -34,6 +35,16 @@ struct PagerConfig {
     std::uint64_t vram_budget = 2ull << 30;   // 2 GiB
     std::uint64_t page_size = 64ull << 20;    // 64 MiB
     unsigned staging_buffers = 2;
+    // Number of concurrent CUDA transfer streams the pager round-robins loads
+    // across. 1 (default) preserves exact v1.x behavior: every H2D/D2H copy
+    // serializes on a single stream. On an SM >= 8.0 part with independent copy
+    // engines, 2-4 lets independent page loads (demand + prefetch workers)
+    // overlap on the PCIe wire. For real overlap keep
+    //   staging_buffers >= min(transfer_streams, prefetch_workers + 1)
+    // so concurrent staged copies never contend for the same pinned buffer.
+    // The direct-DMA path (pinned source) needs no staging buffer and overlaps
+    // purely on the stream pool.
+    unsigned transfer_streams = 1;
     // Background prefetch workers that drain prefetch_async(). 0 keeps the
     // pager fully synchronous (v1.0 behavior). 1 is the common case: it lets
     // source->pinned->H2D of future pages overlap compute on the current page.
@@ -181,12 +192,21 @@ private:
     // unique_lock on mutex_ (passed so it can wait if every buffer is busy).
     std::size_t reserve_staging(std::unique_lock<std::mutex>& lock);
     void worker_loop();
+    // Pick the next transfer stream round-robin across the pool. Thread-safe;
+    // callers need not hold mutex_. With a single-element pool this always
+    // returns the same stream (exact legacy behavior).
+    cudaStream_t next_transfer_stream() noexcept;
 
     MemorySourcePtr source_;
     WritableMemorySource* writable_source_ = nullptr;  // non-null iff source is writable
     PagerConfig config_;
     void* device_cache_ = nullptr;
-    cudaStream_t transfer_stream_ = nullptr;
+    // Pool of non-blocking transfer streams (size == max(1, transfer_streams)).
+    // Independent page loads are round-robined across these so they can overlap
+    // on the wire. Every copy records its slot's load_done (and a staged load's
+    // h2d_done) on the SAME stream that issued it.
+    std::vector<cudaStream_t> transfer_streams_;
+    std::atomic<std::size_t> stream_cursor_{0};
     std::vector<DeviceSlot> slots_;
     std::vector<StagingSlot> staging_;
     std::unordered_map<std::uint64_t, std::size_t> resident_;

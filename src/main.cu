@@ -236,6 +236,7 @@ void bench(const Args& args) {
     const auto budget = vramer::parse_bytes(get(args, "vram-budget", "2GiB"));
     const auto page = vramer::parse_bytes(get(args, "page-size", "64MiB"));
     const unsigned staging = static_cast<unsigned>(std::stoul(get(args, "staging", "2")));
+    const unsigned transfer_streams = static_cast<unsigned>(std::stoul(get(args, "transfer-streams", "1")));
     const unsigned passes = static_cast<unsigned>(std::stoul(get(args, "passes", "1")));
     const unsigned prefetch_workers = static_cast<unsigned>(std::stoul(get(args, "prefetch-workers", "0")));
     const std::uint64_t prefetch_ahead = std::stoull(get(args, "prefetch-ahead", "0"));
@@ -281,6 +282,7 @@ void bench(const Args& args) {
     base.vram_budget = budget;
     base.page_size = page;
     base.staging_buffers = staging;
+    base.transfer_streams = transfer_streams;
     base.prefetch_workers = prefetch_workers;
     if (evict == "mru") base.eviction = vramer::EvictionPolicy::Mru;
     else if (evict == "lru") base.eviction = vramer::EvictionPolicy::Lru;
@@ -294,6 +296,7 @@ void bench(const Args& args) {
               << "VRAM budget:  " << vramer::human_bytes(budget) << " per GPU\n"
               << "Page size:    " << vramer::human_bytes(page) << "\n"
               << "Staging ring: " << staging << " x " << vramer::human_bytes(page) << " pinned\n"
+              << "Xfer streams: " << transfer_streams << "\n"
               << "Eviction:     " << evict << "\n"
               << "Prefetch:     " << prefetch_workers << " worker(s), ahead=" << prefetch_ahead << "\n";
 
@@ -494,6 +497,8 @@ bench options:
   --vram-budget SIZE      device-cache budget (default 2GiB)
   --page-size SIZE        paging granularity (default 64MiB)
   --staging N             pinned staging buffers (default 2)
+  --transfer-streams N    concurrent H2D transfer streams (default 1; 2-4 lets
+                          independent page loads overlap on the PCIe wire)
   --passes N              sequential passes (default 1)
   --prefetch-workers N    background prefetch worker threads (default 0)
   --prefetch-ahead N      stay N pages ahead of the demand cursor (needs workers)

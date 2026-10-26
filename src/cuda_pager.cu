@@ -71,7 +71,11 @@ CudaPager::CudaPager(MemorySourcePtr source, PagerConfig config)
         throw std::invalid_argument("staging_buffers must be >= 1");
 
     VRAMER_CUDA(cudaSetDevice(config_.gpu));
-    VRAMER_CUDA(cudaStreamCreateWithFlags(&transfer_stream_, cudaStreamNonBlocking));
+    const unsigned stream_count = std::max(1u, config_.transfer_streams);
+    config_.transfer_streams = stream_count;
+    transfer_streams_.resize(stream_count, nullptr);
+    for (auto& s : transfer_streams_)
+        VRAMER_CUDA(cudaStreamCreateWithFlags(&s, cudaStreamNonBlocking));
 
     const std::uint64_t slot_count = config_.vram_budget / config_.page_size;
     config_.vram_budget = slot_count * config_.page_size;
@@ -81,7 +85,7 @@ CudaPager::CudaPager(MemorySourcePtr source, PagerConfig config)
     for (auto& slot : slots_) {
         VRAMER_CUDA(cudaEventCreateWithFlags(&slot.load_done, cudaEventDisableTiming));
         // Mark an initial event complete so a never-loaded slot has sane state.
-        VRAMER_CUDA(cudaEventRecord(slot.load_done, transfer_stream_));
+        VRAMER_CUDA(cudaEventRecord(slot.load_done, transfer_streams_[0]));
     }
 
     staging_.resize(config_.staging_buffers);
@@ -91,7 +95,7 @@ CudaPager::CudaPager(MemorySourcePtr source, PagerConfig config)
         VRAMER_CUDA(cudaHostAlloc(&stage.host, config_.page_size, cudaHostAllocPortable));
         VRAMER_CUDA(cudaEventCreateWithFlags(&stage.h2d_done, cudaEventDisableTiming));
     }
-    VRAMER_CUDA(cudaStreamSynchronize(transfer_stream_));
+    VRAMER_CUDA(cudaStreamSynchronize(transfer_streams_[0]));
 
     // Launch background prefetch workers last, once all CUDA state is live.
     for (unsigned i = 0; i < config_.prefetch_workers; ++i) {
@@ -112,7 +116,7 @@ CudaPager::~CudaPager() {
 
     try {
         if (config_.gpu >= 0) cudaSetDevice(config_.gpu);
-        if (transfer_stream_) cudaStreamSynchronize(transfer_stream_);
+        for (auto s : transfer_streams_) if (s) cudaStreamSynchronize(s);
         for (auto& slot : slots_) {
             for (auto ev : slot.pending_uses) cudaEventDestroy(ev);
             if (slot.load_done) cudaEventDestroy(slot.load_done);
@@ -123,7 +127,7 @@ CudaPager::~CudaPager() {
             if (stage.host) cudaFreeHost(stage.host);
         }
         if (device_cache_) cudaFree(device_cache_);
-        if (transfer_stream_) cudaStreamDestroy(transfer_stream_);
+        for (auto s : transfer_streams_) if (s) cudaStreamDestroy(s);
     } catch (...) {}
 }
 
@@ -134,6 +138,12 @@ std::uint64_t CudaPager::page_count() const noexcept {
 PagerStats CudaPager::stats() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return stats_;
+}
+
+cudaStream_t CudaPager::next_transfer_stream() noexcept {
+    if (transfer_streams_.size() == 1) return transfer_streams_[0];
+    const std::size_t i = stream_cursor_.fetch_add(1, std::memory_order_relaxed);
+    return transfer_streams_[i % transfer_streams_.size()];
 }
 
 void CudaPager::reap_completed_events(DeviceSlot& slot, bool block) {
@@ -315,10 +325,13 @@ PageLease CudaPager::acquire_impl(std::uint64_t page_id, bool is_prefetch, bool 
         // bottleneck), approaching the raw PCIe ceiling.
         const void* direct = source_->pinned_host_ptr(offset, valid);
         if (direct) {
+            // Route this load onto a stream from the pool so independent direct
+            // loads overlap on the wire. load_done records on the SAME stream.
+            cudaStream_t stream = next_transfer_stream();
             lock.unlock();
             VRAMER_CUDA(cudaMemcpyAsync(device_ptr, direct, valid,
-                                        cudaMemcpyHostToDevice, transfer_stream_));
-            VRAMER_CUDA(cudaEventRecord(load_done, transfer_stream_));
+                                        cudaMemcpyHostToDevice, stream));
+            VRAMER_CUDA(cudaEventRecord(load_done, stream));
             lock.lock();
             slots_[index].loading = false;
             stats_.bytes_h2d += valid;
@@ -331,6 +344,10 @@ PageLease CudaPager::acquire_impl(std::uint64_t page_id, bool is_prefetch, bool 
         const std::size_t stage_idx = reserve_staging(lock);
         void* host = staging_[stage_idx].host;
         const cudaEvent_t h2d_done = staging_[stage_idx].h2d_done;
+        // One stream for this load's H2D; both load_done and this staging slot's
+        // h2d_done record on it, so reserve_staging's h2d_done wait and the
+        // compute stream's load_done wait both observe the right copy.
+        cudaStream_t stream = next_transfer_stream();
 
         // ---- unlocked region: the expensive source->pinned copy and the async
         // H2D run here so they overlap other threads' compute and transfers.
@@ -342,9 +359,9 @@ PageLease CudaPager::acquire_impl(std::uint64_t page_id, bool is_prefetch, bool 
         source_->read(offset, host, valid);
         const std::uint64_t read_ns = now_ns() - t_read;
         VRAMER_CUDA(cudaMemcpyAsync(device_ptr, host, valid,
-                                    cudaMemcpyHostToDevice, transfer_stream_));
-        VRAMER_CUDA(cudaEventRecord(load_done, transfer_stream_));
-        VRAMER_CUDA(cudaEventRecord(h2d_done, transfer_stream_));
+                                    cudaMemcpyHostToDevice, stream));
+        VRAMER_CUDA(cudaEventRecord(load_done, stream));
+        VRAMER_CUDA(cudaEventRecord(h2d_done, stream));
         lock.lock();
         // ---- end unlocked region ----
 
@@ -371,9 +388,12 @@ void CudaPager::flush_slot_data(std::size_t index, std::uint64_t page_id,
     const std::uint64_t offset = page_id * config_.page_size;
 
     // Unlocked: D2H into the pinned buffer, then the CPU copy back to the source.
+    // Issue and drain on one pool stream; the writeback is synchronous so no
+    // cross-stream ordering with concurrent H2D loads is needed.
+    cudaStream_t stream = next_transfer_stream();
     lock.unlock();
-    VRAMER_CUDA(cudaMemcpyAsync(host, device_ptr, valid, cudaMemcpyDeviceToHost, transfer_stream_));
-    VRAMER_CUDA(cudaStreamSynchronize(transfer_stream_));
+    VRAMER_CUDA(cudaMemcpyAsync(host, device_ptr, valid, cudaMemcpyDeviceToHost, stream));
+    VRAMER_CUDA(cudaStreamSynchronize(stream));
     writable_source_->write(offset, host, valid);
     lock.lock();
 
@@ -403,10 +423,14 @@ void CudaPager::flush() {
 
 void CudaPager::prefetch(std::uint64_t page_id) {
     auto lease = acquire_impl(page_id, /*is_prefetch=*/true, /*mutate=*/false);
-    // Release after the transfer stream reaches the page load. This keeps the
-    // page resident but unleased, ready for a later cache hit.
-    lease.wait_on(transfer_stream_);
-    lease.release_on(transfer_stream_);
+    // Release after a transfer stream reaches the page load. This keeps the
+    // page resident but unleased, ready for a later cache hit. Any pool stream
+    // works: wait_on makes it wait on the slot's load_done (recorded on whatever
+    // stream issued the copy), so the pending-use event is ordered after the
+    // load regardless of which stream we pick here.
+    cudaStream_t stream = next_transfer_stream();
+    lease.wait_on(stream);
+    lease.release_on(stream);
 }
 
 void CudaPager::prefetch_async(std::uint64_t page_id) {
@@ -515,7 +539,7 @@ void CudaPager::release_slot_sync(std::size_t slot_index) {
 void CudaPager::synchronize() {
     std::lock_guard<std::mutex> lock(mutex_);
     VRAMER_CUDA(cudaSetDevice(config_.gpu));
-    VRAMER_CUDA(cudaStreamSynchronize(transfer_stream_));
+    for (auto s : transfer_streams_) VRAMER_CUDA(cudaStreamSynchronize(s));
     for (auto& slot : slots_) reap_completed_events(slot, true);
 }
 
