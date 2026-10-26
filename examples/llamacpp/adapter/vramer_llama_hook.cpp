@@ -8,6 +8,15 @@
 // the budget (acquire / wait_on / D2D-gather into the kernel's dst buffer /
 // release_on, with one-ahead prefetch -- exactly the sequence proven in
 // examples/llamacpp/vramer_ggml_*.cpp) instead of a plain H2D memcpy.
+//
+// For a MoE expert stack (a 3D tensor, ne[2] = n_expert, e.g.
+// blk.N.ffn_down_exps.weight) the hook pages ONLY the experts that are active
+// for the current token. It recovers the active set the same way llama.cpp's
+// own llama_context::sched_copy_experts does: the split graph's first node is
+// the GGML_OP_MUL_MAT_ID whose src[0] is the (device) expert buffer and whose
+// src[2] is the int32 routing ids; the distinct ids are the active experts.
+// Only those expert slices are paged from the file, so the bytes that stream
+// per token are ~ (n_expert_used / n_expert) of the stack.
 
 #include "vramer_llama_hook.h"
 
@@ -19,6 +28,7 @@
 
 #include <cuda_runtime.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
@@ -27,6 +37,8 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace {
 
@@ -46,10 +58,14 @@ struct VramerHook {
     std::unordered_map<std::string, TInfo> tensors; // name -> file offset/size
     uint64_t paged_set_bytes = 0; // sum of sizes of DISTINCT tensors paged
     uint64_t paged_count     = 0; // number of DISTINCT tensors paged
+    std::unordered_set<std::string> seen;
 
     // telemetry
-    std::atomic<uint64_t> served{0};     // #copies served from VRAMER
-    std::atomic<uint64_t> served_bytes{0};
+    std::atomic<uint64_t> served{0};      // #copies served from VRAMER
+    std::atomic<uint64_t> served_bytes{0};// bytes actually streamed (active only)
+    std::atomic<uint64_t> expert_copies{0};  // #MoE expert-stack copies served
+    std::atomic<uint64_t> experts_paged{0};  // total active-expert slices paged
+    std::atomic<uint64_t> expert_full_bytes{0}; // what a full-stack copy WOULD cost
 };
 
 VramerHook g;
@@ -66,11 +82,16 @@ void report_atexit() {
     vramer_stats st; memset(&st, 0, sizeof st);
     vramer_pager_stats(g.pager, &st);
     uint64_t dem = st.hits + st.misses;
+    const uint64_t ef = g.expert_full_bytes.load();
+    const uint64_t sb = g.served_bytes.load();
     fprintf(stderr,
         "\n[VRAMER] ===== weight paging summary =====\n"
-        "[VRAMER] paged weight set (host, NOT in VRAM): %.2f MiB across %llu tensors\n"
+        "[VRAMER] paged weight set (host, NOT resident in VRAM): %.2f MiB across %llu tensors\n"
         "[VRAMER] VRAM budget: %.2f MiB (page %.2f MiB, %llu slots) -- %s than paged set\n"
-        "[VRAMER] copies served from VRAMER: %llu  (%.2f MiB of weight reads)\n"
+        "[VRAMER] copies served from VRAMER: %llu  (of which %llu were MoE expert stacks)\n"
+        "[VRAMER] bytes streamed (active only): %.2f MiB\n"
+        "[VRAMER] MoE: %llu active-expert slices paged; a full-stack copy would have moved %.2f MiB"
+        " -> streamed %.1f%% of that\n"
         "[VRAMER] pager: hits=%llu misses=%llu hit_rate=%.1f%% evictions=%llu\n"
         "[VRAMER] bytes_h2d=%.2f MiB  <- real host->device paging traffic\n"
         "[VRAMER] ==================================\n",
@@ -78,7 +99,10 @@ void report_atexit() {
         g.budget / 1048576.0, g.page_size / 1048576.0,
         (unsigned long long) vramer_pager_resident_capacity_pages(g.pager),
         (g.budget < g.paged_set_bytes ? "SMALLER" : "NOT smaller"),
-        (unsigned long long) g.served.load(), g.served_bytes.load() / 1048576.0,
+        (unsigned long long) g.served.load(), (unsigned long long) g.expert_copies.load(),
+        sb / 1048576.0,
+        (unsigned long long) g.experts_paged.load(), ef / 1048576.0,
+        ef ? 100.0 * sb / ef : 0.0,
         (unsigned long long) st.hits, (unsigned long long) st.misses,
         dem ? 100.0 * st.hits / dem : 0.0, (unsigned long long) st.evictions,
         st.bytes_h2d / 1048576.0);
@@ -126,7 +150,10 @@ bool init_locked() {
     cfg.page_size = g.page_size;
     cfg.staging_buffers = 4;
     cfg.prefetch_workers = 1;
-    cfg.eviction = VRAMER_EVICT_MRU;
+    // MRU suits the dense cyclic-layer scan; LRU suits MoE, where a few experts
+    // are "popular" across tokens and worth keeping resident. Default MRU.
+    cfg.eviction = env_u64("VRAMER_EVICT", VRAMER_EVICT_MRU) ? VRAMER_EVICT_MRU
+                                                             : VRAMER_EVICT_LRU;
     g.pager = vramer_pager_create(srcf, &cfg, errbuf, sizeof errbuf);
     vramer_source_free(srcf);
     if (!g.pager) {
@@ -145,7 +172,7 @@ bool init_locked() {
     return true;
 }
 
-// Page the tensor [off,off+size) from VRAMER into contiguous device dst.
+// Page the file range [off,off+size) from VRAMER into contiguous device dst.
 bool gather_into(void * dst, uint64_t off, uint64_t size) {
     const uint64_t fp = off / g.page_size;
     const uint64_t lp = (off + size - 1) / g.page_size;
@@ -184,11 +211,87 @@ bool gather_into(void * dst, uint64_t off, uint64_t size) {
     return true;
 }
 
+void account_distinct(const char * name, uint64_t fsize) {
+    if (!g.seen.count(name)) { g.seen.insert(name); g.paged_set_bytes += fsize; g.paged_count++; }
+}
+
+// Dense path: page the whole tensor into dst->data.
+int serve_whole(const char * name, const TInfo & ti, uint64_t src_bytes, void * dst) {
+    const uint64_t copy_size = src_bytes < ti.size ? src_bytes : ti.size;
+    if (!gather_into(dst, ti.off, copy_size)) return 0; // fall back on error
+    account_distinct(name, ti.size);
+    g.served.fetch_add(1);
+    g.served_bytes.fetch_add(copy_size);
+    return 1;
+}
+
+// MoE path: page ONLY the experts active for this token. Returns 1 if handled
+// (including the no-active-experts case), 0 to fall back to the default copy.
+int serve_experts(ggml_backend_t backend, const struct ggml_tensor * src,
+                  struct ggml_tensor * dst, struct ggml_cgraph * graph,
+                  const char * name, const TInfo & ti) {
+    if (!graph || ggml_graph_n_nodes(graph) == 0) return 0;
+
+    // The active experts for this split are computed from the MUL_MAT_ID that
+    // consumes `dst`. Only the split's first node is guaranteed to carry the ids.
+    const struct ggml_tensor * node = ggml_graph_node(graph, 0);
+    if (node->op != GGML_OP_MUL_MAT_ID || node->src[0] != dst) return 0;
+
+    const struct ggml_tensor * ids = node->src[2];
+    if (!ids) return 0;
+
+    const int64_t n_expert    = src->ne[2];
+    const uint64_t expert_size = (uint64_t) src->nb[2];
+
+    account_distinct(name, ti.size); // the whole stack is host-resident
+    g.expert_full_bytes.fetch_add(ti.size);
+
+    if (ggml_nelements(ids) == 0) { g.expert_copies.fetch_add(1); return 1; }
+
+    // read the routing ids to host and mark the used experts.
+    std::vector<int32_t> ids_data(ggml_nbytes(ids) / sizeof(int32_t));
+    ggml_backend_tensor_get_async(backend, ids, ids_data.data(), 0, ggml_nbytes(ids));
+    ggml_backend_synchronize(backend);
+
+    std::vector<char> used(n_expert, 0);
+    for (int64_t i1 = 0; i1 < ids->ne[1]; i1++) {
+        for (int64_t i0 = 0; i0 < ids->ne[0]; i0++) {
+            const int32_t id = ids_data[i1*ids->nb[1]/sizeof(int32_t) + i0*ids->nb[0]/sizeof(int32_t)];
+            if (id >= 0 && id < n_expert) used[id] = 1;
+        }
+    }
+
+    // page consecutive runs of used experts (matches llama.cpp's grouping,
+    // including the small trailing padding it copies to keep MMQ NaN-free).
+    uint64_t streamed = 0, slices = 0;
+    for (int64_t first = 0; first < n_expert; ) {
+        if (!used[first]) { first++; continue; }
+        int64_t last = first;
+        while (last + 1 < n_expert && used[last + 1]) last++;
+
+        const uint64_t offset  = (uint64_t) first * expert_size;
+        const uint64_t padding = last < n_expert - 1 ? std::min<uint64_t>(expert_size, 512) : 0;
+        const uint64_t gsize   = (uint64_t)(last + 1 - first) * expert_size + padding;
+
+        if (!gather_into((char*) dst->data + offset, ti.off + offset, gsize)) return 0;
+        streamed += gsize;
+        slices   += (uint64_t)(last + 1 - first);
+        first = last + 1;
+    }
+
+    g.served.fetch_add(1);
+    g.expert_copies.fetch_add(1);
+    g.experts_paged.fetch_add(slices);
+    g.served_bytes.fetch_add(streamed);
+    return 1;
+}
+
 } // namespace
 
-extern "C" int vramer_llama_copy_hook(ggml_backend_t /*backend*/,
+extern "C" int vramer_llama_copy_hook(ggml_backend_t backend,
                                       const struct ggml_tensor * src,
-                                      struct ggml_tensor * dst) {
+                                      struct ggml_tensor * dst,
+                                      struct ggml_cgraph * graph) {
     if (!g.inited) {
         std::lock_guard<std::mutex> lk(g.mu);
         init_locked();
@@ -199,26 +302,11 @@ extern "C" int vramer_llama_copy_hook(ggml_backend_t /*backend*/,
     auto it = g.tensors.find(std::string(src->name));
     if (it == g.tensors.end()) return 0; // not a file-backed weight we know
 
-    const uint64_t size = (uint64_t) ggml_nbytes(src);
-    const uint64_t fsize = it->second.size;
-    const uint64_t copy_size = size < fsize ? size : fsize;
-
     std::lock_guard<std::mutex> lk(g.mu);
-    if (g.served_bytes.load() == 0) {
-        // record the resident paged set once (tensors actually routed as host
-        // weights are the ones the scheduler asks us to copy)
+
+    // 3D expert stack -> page only the active experts; 2D weight -> page whole.
+    if (src->ne[2] > 1) {
+        return serve_experts(backend, src, dst, graph, src->name, it->second);
     }
-    if (!gather_into(dst->data, it->second.off, copy_size)) {
-        return 0; // fall back to default copy on any error
-    }
-    // account this tensor into the "paged set" the first time we see it
-    static thread_local bool unused = false; (void) unused;
-    {
-        // track distinct tensors paged -> the real resident set we replaced
-        static std::unordered_map<std::string,bool> seen;
-        if (!seen.count(src->name)) { seen[src->name] = true; g.paged_set_bytes += fsize; g.paged_count++; }
-    }
-    g.served.fetch_add(1);
-    g.served_bytes.fetch_add(copy_size);
-    return 1;
+    return serve_whole(src->name, it->second, (uint64_t) ggml_nbytes(src), dst->data);
 }

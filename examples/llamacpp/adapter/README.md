@@ -29,6 +29,16 @@ The bytes delivered are identical to the file, so **generation is byte-identical
 to a full-offload baseline**, but the FFN weights only ever occupy the VRAMER
 budget in VRAM.
 
+### MoE expert paging
+
+`sched_copy_experts` is also llama.cpp's **MoE expert-copy** path, so the same
+hook pages MoE experts. For a 3-D expert stack (`blk.N.ffn_*_exps.weight`,
+`ne[2] = n_expert`) the hook reads the token's routing ids from the split
+graph's `MUL_MAT_ID` node and pages **only the active experts' slices** — the
+property that lets a MoE model keep most of its weight on host while only the
+active fraction streams per token. See [`../README_MOE.md`](../README_MOE.md)
+for the Qwen1.5-MoE-A2.7B demo, `run_demo_moe.sh`, and measurements.
+
 ## Files
 
 | file | role |

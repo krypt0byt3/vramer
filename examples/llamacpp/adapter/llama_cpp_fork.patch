@@ -52,7 +52,7 @@
 +    // VRAMER weight paging (no-op unless env VRAMER_GGUF is set): serve this
 +    // host weight's bytes from the GGUF through a fixed VRAM budget instead of a
 +    // plain H2D copy. See src/vramer_llama_hook.cpp.
-+    if (vramer_llama_copy_hook(backend, src, dst)) {
++    if (vramer_llama_copy_hook(backend, src, dst, graph)) {
 +        return true;
 +    }
 +
