@@ -4,6 +4,23 @@ All notable changes to VRAMER are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/); this project uses
 [Semantic Versioning](https://semver.org/). VRAMER is pre-1.0: APIs may change.
 
+## [Unreleased]
+
+### Added
+- **`prefetch_overlap` test** — GPU regression coverage for the prefetch/compute
+  overlap (double-buffering) path: a cyclic scan through a cache smaller than the
+  working set, byte-verifying every acquired page (including prefetched, evicted,
+  and reloaded pages) and asserting prefetch-ahead raises the demand hit rate.
+- **`bench --sync-per-page`** — models a naive blocking-consumer (the "blocking
+  gather sync" pathology), so the overlap win is measurable against a serialized
+  baseline (~2× on an 8 GiB/4 GiB RAM scan: 2.6 → 5.7 GiB/s).
+- **`ROADMAP.md`** — prioritized enhancement plan (Tier 1–3) and a project wiki.
+
+### Notes
+- Measured honestly: prefetch-ahead converts demand misses to hits (0 → ~99%) but
+  for an already-pipelined consumer the RAM/pinned scan is PCIe-bandwidth-bound, so
+  it does not beat the wire; the wall-clock payoff appears against a blocking consumer.
+
 ## [0.2.0] — 2026-10-25
 
 First public release. Builds on the original v1.0 pager with a large set of

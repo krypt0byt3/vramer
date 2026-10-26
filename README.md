@@ -80,8 +80,12 @@ limits (paging an oversized model is PCIe-bound — `vramer plan` estimates by h
 
 ## Docs & community
 
-[`CONTRIBUTING.md`](CONTRIBUTING.md) · [`CHANGELOG.md`](CHANGELOG.md) ·
-[`SECURITY.md`](SECURITY.md) · [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
+📖 **[Project Wiki](https://github.com/krypt0byt3/vramer/wiki)** — getting started,
+architecture, tuning, integrations, API reference, roadmap, FAQ.
+
+[`ROADMAP.md`](ROADMAP.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md) ·
+[`CHANGELOG.md`](CHANGELOG.md) · [`SECURITY.md`](SECURITY.md) ·
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
 
 ## License
 
