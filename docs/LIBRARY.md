@@ -98,7 +98,7 @@ a device-wide synchronization on the normal path.
 - PCI BDF + NUMA-node reporting
 - no Unified Memory / `cudaMallocManaged()` dependency
 
-See [`docs/INTEGRATION.md`](docs/INTEGRATION.md) for how VRAMER plugs into
+See [`INTEGRATION.md`](INTEGRATION.md) for how VRAMER plugs into
 inference engines (vLLM's KV connector API, llama.cpp weight paging).
 
 ## What v1.0 is NOT yet

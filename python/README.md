@@ -82,9 +82,9 @@ The planner CLIs accept either a bundled profile name (as above) or a path to an
 Build the shared library from the C++ project:
 
 ```bash
-cd v1/VRAMER_v1
+cd ..                                    # repo root (from python/)
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=86
-cmake --build build -j                   # -> v1/VRAMER_v1/build/libvramer.so
+cmake --build build -j                   # -> build/libvramer.so
 export VRAMER_LIB=$PWD/build/libvramer.so
 ```
 
@@ -131,7 +131,7 @@ order (first hit wins):
 1. **`$VRAMER_LIB`** — an explicit path to the `.so` (recommended).
 2. **`$VRAMER_LIB_DIR`** — a directory to look in.
 3. Common build locations relative to the installed package and the current
-   directory: `build/libvramer.so`, `v1/VRAMER_v1/build/libvramer.so`, …
+   directory (searched walking up): `build/libvramer.so`, …
 4. The system dynamic loader (bare `libvramer.so`, honouring `LD_LIBRARY_PATH`
    and `/usr/local/lib`, `/usr/lib`, `/usr/lib64`).
 

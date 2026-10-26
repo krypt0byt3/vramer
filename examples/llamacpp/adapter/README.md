@@ -41,13 +41,13 @@ budget in VRAM.
 ## Reproduce
 
 ```bash
-# 1. build VRAMER (worktree) and the fork
-cmake -S v1/VRAMER_v1 -B v1/VRAMER_v1/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=86
-cmake --build v1/VRAMER_v1/build -j
-bash v1/VRAMER_v1/examples/llamacpp/adapter/build_fork.sh /tmp/llama.cpp /tmp/llama-vramer
+# 1. build VRAMER and the fork (run from the repo root)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=86
+cmake --build build -j
+bash examples/llamacpp/adapter/build_fork.sh /tmp/llama.cpp /tmp/llama-vramer
 
 # 2. run the demo (uses the free GPU — set GPU=<idx>)
-GPU=1 bash v1/VRAMER_v1/examples/llamacpp/adapter/run_demo.sh
+GPU=1 bash examples/llamacpp/adapter/run_demo.sh
 ```
 
 ### Env knobs (read by the hook)

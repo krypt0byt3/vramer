@@ -56,18 +56,18 @@ VRAMER limitation — every offloading approach (DeepSpeed ZeRO-Infinity, FSDP,
 ```bash
 # 1. What's my real bandwidth, and am I bus-bound or copy-bound?
 vramer probe --emit-profile hw.json
-python3 ../../src/vramer_detect.py --merge hw.json --output profiles/me.json
+vramer-detect --merge hw.json --output profiles/me.json
 
 # 2. Will paging help for my model, and at what speed?
-python3 ../../src/vramer_plan.py --profile profiles/me.json \
+vramer-plan --profile profiles/me.json \
         --model profiles/llama-70b.json --gpus 2 --pinned --matrix
 
 # 3. What would a newer bus buy me?
-python3 ../../src/vramer_plan.py --profile profiles/me.json \
+vramer-plan --profile profiles/me.json \
         --model profiles/llama-70b.json --quant q4 --pcie-sweep
 
 # 4. Best config for my hardware?
-python3 ../../src/vramer_score.py --profile profiles/me.json --model profiles/llama-70b.json
+vramer-score --profile profiles/me.json --model profiles/llama-70b.json
 ```
 
 ## Gotchas we measured

@@ -220,7 +220,7 @@ g++ -shared -o build/libvramer.so \
 Then point the Python side at it:
 
 ```bash
-export VRAMER_LIB=/vramer/v1/VRAMER_v1/build-shared/libvramer.so
+export VRAMER_LIB=/vramer/build/libvramer.so
 python3 examples/qlora_paged_linear.py
 ```
 

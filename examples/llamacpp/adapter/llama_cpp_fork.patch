@@ -17,7 +17,7 @@
      PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
  
 +# ---- VRAMER weight-paging hook (fork addition) ----
-+set(VRAMER_ROOT "/vramer/.claude/worktrees/agent-ac59b35e28144a9ff/v1/VRAMER_v1")
++set(VRAMER_ROOT "@VRAMER_ROOT@")
 +find_package(CUDAToolkit REQUIRED)
 +
  configure_file(llama-version.h.in ${CMAKE_CURRENT_BINARY_DIR}/llama-version.h @ONLY)

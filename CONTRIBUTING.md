@@ -1,8 +1,8 @@
 # Contributing to VRAMER
 
 Thanks for your interest! VRAMER is an explicit host-memory ↔ GPU-VRAM pager.
-The maintained library lives in **`v1/VRAMER_v1/`**; Python tooling is in `src/`
-and profiles in `profiles/`.
+The C++/CUDA library is at the repo root (`include/`, `src/`, `tests/`); the
+pip-installable Python package is in `python/`, and profiles in `profiles/`.
 
 ## Prerequisites
 
@@ -13,7 +13,6 @@ and profiles in `profiles/`.
 ## Build & test
 
 ```bash
-cd v1/VRAMER_v1
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=86  # 120 for RTX 50xx
 cmake --build build -j
 ctest --test-dir build --output-on-failure   # requires an NVIDIA GPU
@@ -27,12 +26,14 @@ only compiles the code; GPU tests run on self-hosted runners or locally.
 
 | Path | What |
 |---|---|
-| `v1/VRAMER_v1/include/vramer/` | public headers (C++ API + `vramer_c.h` C ABI) |
-| `v1/VRAMER_v1/src/` | `memory_source.cpp`, `cuda_pager.cu`, `main.cu` (CLI), `vramer_c.cpp` |
-| `v1/VRAMER_v1/tests/` | ctest suite |
-| `v1/VRAMER_v1/examples/` | C-ABI PoC, Python demo, verified ggml-cuda + llama.cpp adapter |
-| `v1/VRAMER_v1/docs/` | integration & tuning docs |
-| `src/`, `profiles/` | Python detect/plan/score tooling and hardware/model profiles |
+| `include/vramer/` | public headers (C++ API + `vramer_c.h` C ABI) |
+| `src/` | `memory_source.cpp`, `cuda_pager.cu`, `main.cu` (CLI), `vramer_c.cpp` |
+| `tests/` | ctest suite |
+| `examples/` | C-ABI PoC, Python demos, verified ggml-cuda + llama.cpp adapter |
+| `docs/` | integration & tuning docs |
+| `python/` | pip-installable `vramer` package (pager + planner) |
+| `profiles/` | hardware/model profiles for the planner |
+| `experiments/` | early A2 exploration & raw logs (historical, not built) |
 
 ## Conventions
 

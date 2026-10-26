@@ -10,7 +10,7 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-VRAMER_ROOT="$(cd "$HERE/../../.." && pwd)"          # .../v1/VRAMER_v1
+VRAMER_ROOT="$(cd "$HERE/../../.." && pwd)"          # repo root (examples/llamacpp/adapter -> ../../..)
 UPSTREAM="${1:-/tmp/llama.cpp}"
 FORK="${2:-/tmp/llama-vramer}"
 
@@ -35,8 +35,8 @@ cp "$HERE/vramer_llama_hook.cpp" "$FORK/src/vramer_llama_hook.cpp"
 cp "$HERE/vramer_llama_hook.h"   "$FORK/src/vramer_llama_hook.h"
 
 # 3. apply the two-file patch (llama-context.cpp call site + src/CMakeLists.txt).
-#    The patch hard-codes VRAMER_ROOT; rewrite it to this checkout's path.
-sed "s#/vramer/.claude/worktrees/[^/]*/v1/VRAMER_v1#$VRAMER_ROOT#g" \
+#    The patch carries a @VRAMER_ROOT@ token; rewrite it to this checkout's path.
+sed "s#@VRAMER_ROOT@#$VRAMER_ROOT#g" \
     "$HERE/llama_cpp_fork.patch" > "$FORK/.vramer.patch"
 ( cd "$FORK" && patch -p1 < .vramer.patch )
 

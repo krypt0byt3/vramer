@@ -4,10 +4,10 @@ This directory holds two kinds of JSON profile plus the tooling's example
 inputs/outputs. The Python tools in `../src/` consume them:
 
 ```
-vramer_detect.py   ->  hardware profile  (vramer-hw-profile/1)
+vramer-detect   ->  hardware profile  (vramer-hw-profile/1)
                        (the C++ `vramer probe` tool emits the SAME shape)
-vramer_plan.py     <-  hardware profile + model profile  -> decode tok/s
-vramer_score.py    <-  hardware profile + model profile  -> recommendation
+vramer-plan     <-  hardware profile + model profile  -> decode tok/s
+vramer-score    <-  hardware profile + model profile  -> recommendation
 ```
 
 - Hardware profiles describe **a machine** (host RAM, NUMA, GPUs, PCIe, NVLink,
@@ -19,10 +19,10 @@ vramer_score.py    <-  hardware profile + model profile  -> recommendation
 
 ## 1. Hardware profile — `vramer-hw-profile/1`
 
-Emitted by `vramer_detect.py` (and, by design, the C++ `vramer probe`). The
+Emitted by `vramer-detect` (and, by design, the C++ `vramer probe`). The
 planner consumes either producer. Measured bandwidth fields are left `0.0` by
 the Python detector and filled by the C++ probe or `vramer_bandwidth.py`;
-`vramer_detect.py --merge <old>` carries existing measured values forward.
+`vramer-detect --merge <old>` carries existing measured values forward.
 
 ```json
 {
@@ -57,7 +57,7 @@ the Python detector and filled by the C++ probe or `vramer_bandwidth.py`;
 
 `current-machine.json` is this repo's detected profile (2× NVIDIA A2, PCIe Gen3
 x16). `r730.json` is an older-schema (`vramer_profile_version: 1`) capture kept
-for reference; regenerate it with `vramer_detect.py` to get the new schema.
+for reference; regenerate it with `vramer-detect` to get the new schema.
 
 ---
 
@@ -154,31 +154,31 @@ slot caps the real bus.
 Detect this machine and save a hardware profile:
 
 ```bash
-python3 ../src/vramer_detect.py --output current-machine.json
+vramer-detect --output current-machine.json
 # carry forward measured bandwidth from a previous probe:
-python3 ../src/vramer_detect.py --merge current-machine.json --output current-machine.json
+vramer-detect --merge current-machine.json --output current-machine.json
 ```
 
 Single decode estimate (what-ifs via flags):
 
 ```bash
-python3 ../src/vramer_plan.py --profile current-machine.json --model llama-70b.json \
+vramer-plan --profile current-machine.json --model llama-70b.json \
     --quant q4 --batch 8 --vram-budget 24GiB --pinned
 ```
 
 Matrix mode (quant x batch grid) + PCIe what-if sweep:
 
 ```bash
-python3 ../src/vramer_plan.py --profile current-machine.json --model llama-70b.json --matrix
-python3 ../src/vramer_plan.py --profile current-machine.json --model llama-70b.json \
+vramer-plan --profile current-machine.json --model llama-70b.json --matrix
+vramer-plan --profile current-machine.json --model llama-70b.json \
     --quant q4 --batch 1 --pcie-sweep
 ```
 
 Recommendation / scorer:
 
 ```bash
-python3 ../src/vramer_score.py --profile current-machine.json --model llama-70b.json
-python3 ../src/vramer_score.py --profile current-machine.json --model mixtral-8x7b.json --json
+vramer-score --profile current-machine.json --model llama-70b.json
+vramer-score --profile current-machine.json --model mixtral-8x7b.json --json
 ```
 
 Useful flags (plan & score): `--resident-fraction F`, `--gpus N`,

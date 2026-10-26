@@ -109,8 +109,6 @@ def _candidate_paths() -> List[Path]:
     rel = [
         Path("libvramer.so"),
         Path("build") / _LIB_NAME,
-        Path("v1") / "VRAMER_v1" / "build" / _LIB_NAME,
-        Path("VRAMER_v1") / "build" / _LIB_NAME,
     ]
     for root in roots:
         for r in rel:
@@ -170,14 +168,12 @@ def load_lib() -> ctypes.CDLL:
                 "Could not locate the VRAMER shared library "
                 f"({_LIB_NAME}).\n\n"
                 "The compiled CUDA library is NOT shipped in the wheel; build "
-                "it from the C++ project and point VRAMER at it:\n\n"
-                "  cd v1/VRAMER_v1\n"
+                "it from the C++ project (repo root) and point VRAMER at it:\n\n"
                 "  cmake -S . -B build -DCMAKE_BUILD_TYPE=Release "
                 "-DCMAKE_CUDA_ARCHITECTURES=86\n"
                 "  cmake --build build -j\n\n"
                 "Then set VRAMER_LIB to the built .so, e.g.:\n"
-                "  export VRAMER_LIB=/abs/path/to/v1/VRAMER_v1/build/"
-                f"{_LIB_NAME}\n\n"
+                f"  export VRAMER_LIB=/abs/path/to/vramer/build/{_LIB_NAME}\n\n"
                 f"Searched these paths:\n  {tried}"
             )
     else:

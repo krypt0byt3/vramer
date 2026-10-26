@@ -21,14 +21,15 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends cmake ninja-build g++
       - name: Configure
-        run: cmake -S v1/VRAMER_v1 -B build -G Ninja
+        run: cmake -S . -B build -G Ninja
              -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=86
              -DVRAMER_BUILD_TESTS=ON
       - name: Build
         run: cmake --build build -j
       # Note: `ctest` is intentionally NOT run here — it requires an NVIDIA GPU.
 
-  # Python tooling (planner/detector/scorer) — no GPU needed.
+  # Python package (planner/detector/scorer) — no GPU needed; the pager tests
+  # auto-skip without a built libvramer.so + CUDA device.
   python:
     runs-on: ubuntu-latest
     steps:
@@ -36,17 +37,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Syntax-check tooling
-        run: python -m py_compile src/vramer_detect.py src/vramer_plan.py src/vramer_score.py
-      - name: Planner smoke test
+      - name: Install package
+        run: python -m pip install -e 'python/[dev]'
+      - name: Tests
+        run: cd python && python -m pytest -q
+      - name: Planner smoke test (lib-free)
         run: |
-          python src/vramer_plan.py --profile profiles/current-machine.json \
-            --model profiles/llama-70b.json --gpus 2 --matrix || true
-      - name: Python package (if present)
-        if: ${{ hashFiles('python/pyproject.toml') != '' }}
-        run: |
-          python -m pip install -e 'python/[dev]'
-          cd python && python -m pytest -q
+          vramer-plan --profile profiles/current-machine.json \
+            --model profiles/llama-70b.json --gpus 2 --matrix
 
   # Enable on a machine with an NVIDIA GPU by registering a self-hosted runner
   # labelled `gpu`. Runs the real ctest suite (pager, write-back, concurrency,
@@ -58,6 +56,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build + test
         run: |
-          cmake -S v1/VRAMER_v1 -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=86
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=86
           cmake --build build -j
           ctest --test-dir build --output-on-failure
