@@ -74,6 +74,13 @@ Large model/engine/checkpoint data is intentionally **not** tracked (`.gitignore
 - A **verified ggml-cuda path** and a **working end-to-end llama.cpp adapter**:
   byte-identical generation with a weight set paged through a VRAM budget smaller
   than it.
+- **MoE expert paging** (Qwen1.5-MoE-A2.7B): only the *active* experts stream per
+  token (~7.4% of the stack — **13.5× less** traffic than paging it whole), keeping
+  **~90% of the model on host** through a budget as small as 0.5 GiB, with
+  **byte-identical** output and pager hit-rate rising 36→70% as the budget grows
+  (real MoE cross-token locality). This proves the selectivity + correctness thesis;
+  throughput optimization (async expert prefetch) is the open follow-up. See
+  [`examples/llamacpp/README_MOE.md`](examples/llamacpp/README_MOE.md).
 
 See [`docs/LIBRARY.md`](docs/LIBRARY.md) for the full reference, roadmap, and honest
 limits (paging an oversized model is PCIe-bound — `vramer plan` estimates by how much).

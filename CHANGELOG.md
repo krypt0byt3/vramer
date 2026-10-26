@@ -15,11 +15,24 @@ All notable changes to VRAMER are documented here. Format follows
   gather sync" pathology), so the overlap win is measurable against a serialized
   baseline (~2× on an 8 GiB/4 GiB RAM scan: 2.6 → 5.7 GiB/s).
 - **`ROADMAP.md`** — prioritized enhancement plan (Tier 1–3) and a project wiki.
+- **MoE expert-paging demo** (`examples/llamacpp/README_MOE.md`,
+  `adapter/run_demo_moe.sh`) — the llama.cpp hook is now expert-aware: for a 3-D
+  expert stack it reads the token's `MUL_MAT_ID` routing ids and pages **only the
+  active experts' slices** (2-D weights still page whole, so the dense demo is
+  unchanged). On Qwen1.5-MoE-A2.7B: ~90% of the model paged from host through a
+  0.5 GiB budget, byte-identical output, ~7.4% of the expert set streamed per token
+  (13.5× less than dense-equivalent), hit-rate 36→70% with budget. Added a
+  `VRAMER_EVICT` knob (LRU suits MoE's popular-expert reuse).
 
 ### Notes
 - Measured honestly: prefetch-ahead converts demand misses to hits (0 → ~99%) but
   for an already-pipelined consumer the RAM/pinned scan is PCIe-bandwidth-bound, so
   it does not beat the wire; the wall-clock payoff appears against a blocking consumer.
+- MoE paging proves the *selectivity + correctness* half of the thesis, **not** the
+  *speed* half yet: decode is 3–8% of resident because the adapter pages experts
+  synchronously with no compute/transfer overlap. Converting the proven byte
+  advantage into a speed advantage needs async double-buffered expert prefetch —
+  tracked in the roadmap.
 
 ## [0.2.0] — 2026-10-25
 

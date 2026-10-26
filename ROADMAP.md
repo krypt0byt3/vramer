@@ -15,9 +15,15 @@ Paging an oversized dense model for single-stream decode is PCIe-bound — see
    neutral-but-free (hit rate 0 → ~99%) for an already-pipelined, PCIe-bound scan.
    *Remaining:* push the same layer-ahead overlap into the llama.cpp adapter itself
    (currently node-granular with a blocking gather).
-2. 🔄 **A real MoE demo (Qwen-MoE / Mixtral-8x7B).** *In progress.* Only active
-   experts stream per token (`moe_active_fraction` ≪ 1), so the locality wall mostly
-   doesn't apply — the differentiated story. The planner already models this.
+2. 🟡 **A real MoE demo (Qwen1.5-MoE-A2.7B).** *Selectivity + correctness done;
+   speed pending.* The llama.cpp hook now pages **only the active experts** per
+   token (reads the `MUL_MAT_ID` routing ids). Proven: ~90% of the model on host
+   through a 0.5 GiB budget, **byte-identical** output, ~7.4% of the expert set
+   streamed/token (13.5× less than dense-equivalent), hit-rate 36→70% with budget
+   (real MoE locality). **Not yet:** speed — decode is 3–8% of resident because the
+   adapter pages experts *synchronously* with no overlap. Closing that needs async
+   double-buffered expert prefetch (the adapter half of #1). See
+   `examples/llamacpp/README_MOE.md`.
 3. **Compression-on-wire (nvCOMP).** Being PCIe-bound, compressing weights ~2×
    before H2D and decompressing on-GPU is a near-direct 2× to effective bandwidth.
 
