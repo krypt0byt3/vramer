@@ -1,0 +1,26 @@
+0.00.103.322 I llama_completion: llama backend init
+0.00.103.356 I llama_completion: load the model and apply lora adapter, if any
+0.01.201.749 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.01.291.682 W llama_model_loader: tensor overrides to CPU are used with mmap enabled - consider using --load-mode none for better performance
+0.02.216.185 I cmn          init: llama threadpool init, n_threads = 24
+0.02.491.205 I 
+0.02.491.339 I system_info: n_threads = 24 (n_threads_batch = 24) / 24 | CUDA : ARCHS = 860 | USE_GRAPHS = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
+0.02.491.339 I 
+0.02.491.459 I sampler seed: 4294967295
+0.02.491.480 I sampler params: 
+	repeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 0.000
+	dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
+	top_k = 40, top_p = 0.950, min_p = 0.050, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.000
+	mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
+0.02.491.488 I sampler chain: logits -> ?penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> greedy 
+0.02.491.490 I generate: n_ctx = 32768, n_batch = 2048, n_predict = 64, n_keep = 0
+0.02.491.490 I 
+0.05.912.133 I common_perf_print:    sampling time =      15.16 ms
+0.05.912.135 I common_perf_print:    samplers time =       2.36 ms /    28 tokens
+0.05.912.141 I common_perf_print:        load time =    1443.25 ms
+0.05.912.143 I common_perf_print: prompt eval time =     484.71 ms /     5 tokens (   96.94 ms per token,    10.32 tokens per second)
+0.05.912.144 I common_perf_print:        eval time =    2918.33 ms /    22 runs   (  132.65 ms per token,     7.54 tokens per second)
+0.05.912.146 I common_perf_print:       total time =    3420.94 ms /    27 tokens
+0.05.912.147 I common_perf_print: unaccounted time =       2.74 ms /   0.1 %      (total - sampling - prompt eval - eval) / (total)
+0.05.912.147 I common_perf_print:    graphs reused =         21
+0.05.912.148 I common_perf_print:   graph reallocs =          0    /     0        (same size) / (changed size)
