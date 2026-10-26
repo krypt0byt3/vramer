@@ -172,8 +172,14 @@ bool init_locked() {
     return true;
 }
 
-// Page the file range [off,off+size) from VRAMER into contiguous device dst.
-bool gather_into(void * dst, uint64_t off, uint64_t size) {
+// Gather the file range [off,off+size) from VRAMER into contiguous device dst,
+// issuing all acquire/wait_on/D2D/release work on g.stream WITHOUT a CPU sync.
+// The caller must sync_stream() once before the gathered bytes are consumed.
+// Each page's lease is released_on(g.stream) immediately after its D2D is queued
+// (ordered on the stream), so at most the pager's slot depth is ever in flight --
+// identical residency to the old per-call path, only without the blocking sync
+// between slices.
+bool gather_range_async(void * dst, uint64_t off, uint64_t size) {
     const uint64_t fp = off / g.page_size;
     const uint64_t lp = (off + size - 1) / g.page_size;
     for (uint64_t pg = fp; pg <= lp; ++pg) {
@@ -202,13 +208,25 @@ bool gather_into(void * dst, uint64_t off, uint64_t size) {
             fprintf(stderr, "[VRAMER] release_on failed: %s\n", errbuf); return false;
         }
     }
-    // Make the gathered bytes globally visible before the compute kernel (on a
-    // different stream) reads dst.
+    return true;
+}
+
+// Make everything queued on g.stream globally visible before the compute kernel
+// (launched by the scheduler on a different stream, after this hook returns)
+// reads dst.
+bool sync_stream() {
     cudaError_t e = cudaStreamSynchronize(g.stream);
     if (e != cudaSuccess) {
         fprintf(stderr, "[VRAMER] sync failed: %s\n", cudaGetErrorString(e)); return false;
     }
     return true;
+}
+
+// Page the file range [off,off+size) and block until it is visible. Used by the
+// dense whole-tensor path (a single contiguous range -- nothing to overlap).
+bool gather_into(void * dst, uint64_t off, uint64_t size) {
+    if (!gather_range_async(dst, off, size)) return false;
+    return sync_stream();
 }
 
 void account_distinct(const char * name, uint64_t fsize) {
@@ -261,8 +279,15 @@ int serve_experts(ggml_backend_t backend, const struct ggml_tensor * src,
         }
     }
 
-    // page consecutive runs of used experts (matches llama.cpp's grouping,
-    // including the small trailing padding it copies to keep MMQ NaN-free).
+    // Collect the consecutive runs of used experts (matches llama.cpp's
+    // grouping, including the small trailing padding it copies to keep MMQ
+    // NaN-free). The active set for one token is usually a few scattered experts
+    // -> several short runs; the old path paged each run with its own blocking
+    // sync, so a run's H2D could not begin until the previous run was fully
+    // resident. We now overlap the runs: queue every run's acquire/D2D on
+    // g.stream back-to-back and block once at the end.
+    struct Run { uint64_t off; uint64_t size; uint64_t dst_off; };
+    std::vector<Run> runs;
     uint64_t streamed = 0, slices = 0;
     for (int64_t first = 0; first < n_expert; ) {
         if (!used[first]) { first++; continue; }
@@ -273,11 +298,28 @@ int serve_experts(ggml_backend_t backend, const struct ggml_tensor * src,
         const uint64_t padding = last < n_expert - 1 ? std::min<uint64_t>(expert_size, 512) : 0;
         const uint64_t gsize   = (uint64_t)(last + 1 - first) * expert_size + padding;
 
-        if (!gather_into((char*) dst->data + offset, ti.off + offset, gsize)) return 0;
+        runs.push_back({ ti.off + offset, gsize, offset });
         streamed += gsize;
         slices   += (uint64_t)(last + 1 - first);
         first = last + 1;
     }
+
+    // Queue every run's acquire/wait_on/D2D on g.stream back-to-back with NO
+    // CPU sync between runs, then block once at the end. The slice H2Ds (driven
+    // by the pager worker as each page is acquired) and the D2D gathers of the
+    // several runs now pipeline on the stream instead of each run stalling the
+    // CPU before the next can start -- the only behavioural change vs the old
+    // synchronous path, and it leaves the delivered bytes identical.
+    //
+    // We deliberately do NOT speculatively prefetch the whole active set up
+    // front: at a tight budget that floods the cache and evicts pages the very
+    // next acquire still needs (measured: hit-rate 60% -> 4%, and a net loss at
+    // roomy budgets). gather_range_async's one-ahead prefetch already pipelines
+    // within each run; the win here is purely from removing the inter-run sync.
+    for (const Run & r : runs) {
+        if (!gather_range_async((char*) dst->data + r.dst_off, r.off, r.size)) return 0;
+    }
+    if (!runs.empty() && !sync_stream()) return 0;
 
     g.served.fetch_add(1);
     g.expert_copies.fetch_add(1);
