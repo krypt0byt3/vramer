@@ -39,8 +39,18 @@ Paging an oversized dense model for single-stream decode is PCIe-bound — see
     and would pay off only where a single stream can't fill the link (multi-rail /
     higher-bandwidth). **Takeaway: the bottleneck is the physical link, not staging
     software → see #10.**
-3. **Compression-on-wire (nvCOMP).** Being PCIe-bound, compressing weights ~2×
-   before H2D and decompressing on-GPU is a near-direct 2× to effective bandwidth.
+3. 🔴 **Compression-on-wire (nvCOMP). RESOLVED — honest negative** (see
+   `docs/COMPRESSION.md`). The premise (weights compress ~2×) does not hold. Measured
+   on real tensor bytes: **Q4_K_M is incompressible (~1.02×)** — already near entropy,
+   so #3 is dead for the quantized production models — and **BF16 tops out at
+   ~1.23–1.28×**, below the 1.3× go/no-go threshold and far from 2×. Worse, on the A2
+   the nvCOMP GPU decompressor (GDeflate ~3.4 GB/s) runs *slower* than the ~5.7 GiB/s
+   PCIe link, so decompression would just become the new bottleneck: every codec is a
+   wash or a net loss (effective `min(link×ratio, decode)` < baseline). Mechanism is
+   sound (nvCOMP decodes byte-exact; `MemorySource` already abstracts the tier) but
+   the economics aren't. Realistic ceiling ≈ **1.25×, fp16/bf16 only, and only on a
+   GPU whose decode rate ≫ PCIe** — strictly worse and narrower than #10's free ~2×.
+   Probe: `benchmarks/compression/`. **Not worth pursuing for quantized VRAMER.**
 
 ## Tier 2 — credibility and reach
 
