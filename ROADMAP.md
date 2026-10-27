@@ -68,9 +68,16 @@ Paging an oversized dense model for single-stream decode is PCIe-bound — see
    1/B near-ideally; MoE sub-linearly as selectivity erodes). Honest verdict:
    batching *partially* rescues the case but never overtakes native CPU-offload on
    this VM, because native amortizes the same selective copy and moves ~1.7× fewer
-   bytes. The unambiguous throughput win still awaits a model that **cannot fit
-   resident at all** (where native offload isn't an option). *Remaining:* DeepSpeed
-   ZeRO-Infinity / FSDP comparison, and that too-big-to-fit regime.
+   bytes. The **too-big-to-fit regime** is now measured too (`docs/BENCHMARKS.md`,
+   "Too big to fit"; `examples/llamacpp/README_BIGMODEL.md`): Qwen2.5-32B Q4_K_M
+   (18.5 GiB) on a 15 GiB A2 — *full* offload OOMs, but native partial offload still
+   runs it, so "impossible without VRAMER" is **false**. The honest win is narrower
+   and real: VRAMER is the only way to run this over-card model at a peak VRAM **you
+   name** (e.g. 8 GiB), byte-identical, and by caching hot FFN pages (72–83% hit) it
+   **beats blind native CPU-offload by ~30%** (0.43 vs 0.33 tok/s) *at a fixed
+   sub-card VRAM cap*. It still loses raw throughput to the only-fitting `-ngl 49`
+   (~1 tok/s, which pins ~100% of the card). *Remaining:* DeepSpeed ZeRO-Infinity /
+   FSDP comparison; a model too big for host **RAM** (→ #6, GPUDirect/NVMe).
 6. **GPUDirect Storage (cuFile) / `DevDaxSource`** — stream straight from NVMe
    (models larger than *RAM*) and the CXL/PMEM tier story. `MemorySource` already
    abstracts the tier.
@@ -80,11 +87,13 @@ Paging an oversized dense model for single-stream decode is PCIe-bound — see
 7. **QLoRA fine-tuning demo** — frozen 4-bit base is read-only and layer-ordered.
 8. **vLLM KV-connector experiment** (`OffloadingConnector` / `KVConnectorBase_V1`).
 9. **Auto-NUMA detection**; **TensorRT-LLM adapter**.
-10. **Hardware investigation** *(now the clearest single-stream lever, per 3a)* — the
-    A2 rig measured ~5.7 vs nominal ~12 GiB/s H2D, and 3a proved one stream already
-    saturates that ~5.7 GiB/s, so the ceiling is the link, not the pager. The gap is
-    likely VM/QEMU passthrough; bare metal (or PCIe ACS/relaxed-ordering tuning) may
-    give a near-free ~2× to every paged workload at once.
+10. **Hardware investigation** *(now the clearest bandwidth lever — both software
+    levers are exhausted).* 3a (more transfer streams) and #3 (compression-on-wire)
+    both dead-ended at the same ~5.7 GiB/s wall: one stream already saturates it, and
+    quantized weights don't compress. So the ceiling is the physical link, not the
+    pager. The A2 rig measured ~5.7 vs nominal ~12 GiB/s H2D — likely VM/QEMU
+    passthrough; bare metal (or PCIe ACS/relaxed-ordering tuning) may give a near-free
+    ~2× to **every** paged workload at once, with no decode cost. Highest leverage left.
 
 See the [project wiki](https://github.com/krypt0byt3/vramer/wiki) for the full
 reasoning behind each item.

@@ -7,6 +7,20 @@ All notable changes to VRAMER are documented here. Format follows
 ## [Unreleased]
 
 ### Added
+- **Too-big-to-fit demo** (`examples/llamacpp/run_demo_bigmodel.sh`,
+  `examples/llamacpp/README_BIGMODEL.md`, "Too big to fit" in `docs/BENCHMARKS.md`,
+  raw logs under `benchmarks/raw/bigmodel/`) — runs **Qwen2.5-32B Q4_K_M (18.5 GiB)
+  on a single 15 GiB A2**. Full offload (`-ngl 99`) OOMs; VRAMER pages the 15.7 GiB
+  FFN set through a budget you name (4 or 8 GiB), byte-identical to native offload.
+  Honest finding: native partial offload *also* runs it (so not "impossible without
+  VRAMER"), but VRAMER is the only way to run it at a hard, tunable sub-card VRAM
+  ceiling, and by caching hot pages (72–83% hit) it beats blind CPU-offload by ~30%
+  (0.43 vs 0.33 tok/s) at a fixed cap.
+- **Compression-on-wire evaluation** (`docs/COMPRESSION.md`,
+  `benchmarks/compression/`) — measured, not built. Roadmap #3 resolved as an honest
+  negative: Q4_K_M weights are incompressible (~1.02×) and BF16 tops out ~1.25×
+  (below the 1.3× threshold), and on the A2 the GPU decompressor is slower than the
+  ~5.7 GiB/s PCIe link, so every codec is a wash or net loss. No core change.
 - **Concurrent transfer-stream pool** (`PagerConfig::transfer_streams`,
   `bench --transfer-streams N`) — the pager round-robins H2D (and D2H writeback)
   across a pool of non-blocking CUDA streams so demand loads and prefetch workers
