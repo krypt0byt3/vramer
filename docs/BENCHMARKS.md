@@ -296,6 +296,38 @@ VRAMER earns its keep when the paged working set cannot be held resident at all
 and must live under a hard, named VRAM budget — the case to benchmark next on a
 model that overflows the card.
 
+## Too big to fit — Qwen2.5-32B-Instruct Q4_K_M (18.49 GiB) on a 15 GiB A2
+
+This is the "benchmark next" case above: a model whose **weights (18508 MiB)
+exceed the whole card (15356 MiB)**, so `-ngl 99` full offload is impossible.
+Same GPU 0, greedy, `-c 2048`, 48 decode tokens, each timed row ×2. Full writeup
+and exact commands: [`../examples/llamacpp/README_BIGMODEL.md`](../examples/llamacpp/README_BIGMODEL.md).
+
+| config | fits? | decode tok/s | peak VRAM | FFN H2D / 48 tok | hit-rate | output |
+|---|---|---|---|---|---|---|
+| full offload `-ngl 99` | **OOM** | — | fails @18508 MiB alloc | — | — | — |
+| native partial `-ngl 49` | yes | 0.98–1.00 | 14774–14935 MiB | — | — | ref |
+| native cpu-offload `-ot FFN=CPU` | yes | 0.33 | 3778–4003 MiB | internal | — | ref |
+| VRAMER / 4 GiB budget | yes | 0.29–0.32 | 7874 MiB | ~587 GiB | 71.7–77.8 % | byte-identical |
+| VRAMER / 8 GiB budget | yes | 0.41–0.43 | 11970 MiB | ~386 GiB | 81.3–83.3 % | byte-identical |
+
+The FFN set paged on host is **15693.75 MiB — larger than the entire card** —
+served through a 4/8 GiB window. `-ngl 50` already OOMs, so `-ngl 49` is the
+*only* native partial-offload point that fits, and it pins VRAM at ~100 %.
+
+**What this regime adds to the verdict above.** The too-big model confirms the
+earlier read rather than overturning it: VRAMER still does not win raw throughput
+(native partial `-ngl 49` is ~3× faster, by spending the whole card) and does not
+win minimum VRAM (native cpu-offload sits at ~3.9 GiB with no knob). What becomes
+unambiguous here is the **explicit-ceiling property**: VRAMER is the only one of
+the three that runs this over-card model at a peak VRAM *you name* (7.9 GiB or
+12.0 GiB), byte-identical, and — because it caches hot pages rather than
+re-copying every token — VRAMER@8 GiB (0.43 tok/s) beats native cpu-offload
+(0.33 tok/s) by ~30 % at the VRAM it is permitted to use. The win is real and
+precisely bounded: *run a model that overflows the card under a hard, chosen VRAM
+cap, faster than blind cpu-offload buys at that cap.* It is not a general
+throughput win.
+
 ## Reproduce
 
 ```bash

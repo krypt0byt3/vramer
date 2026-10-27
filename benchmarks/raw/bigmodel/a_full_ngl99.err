@@ -1,0 +1,10 @@
+0.00.151.574 I llama_completion: llama backend init
+0.00.151.613 I llama_completion: load the model and apply lora adapter, if any
+0.01.036.797 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
+0.01.236.123 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.07.232.130 E ggml_backend_cuda_buffer_type_alloc_buffer: allocating 18508.35 MiB on device 0: cudaMalloc failed: out of memory
+0.07.232.160 E ggml_backend_buft_alloc_buffer_n_default: failed to allocate CUDA0 buffer of size 19407413248
+0.08.346.582 E llama_model_load: error loading model: unable to allocate CUDA0 buffer
+0.08.346.604 E llama_model_load_from_file_impl: failed to load model
+0.08.346.617 E cmn  common_init_: failed to load model '/tmp/models/Qwen2.5-32B-Instruct-Q4_K_M.gguf'
+0.08.346.628 E llama_completion: error: unable to create context

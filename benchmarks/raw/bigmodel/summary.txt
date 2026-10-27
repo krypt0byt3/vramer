@@ -1,0 +1,53 @@
+############################################################
+# VRAMER 'too big to fit' demo   2026-10-27T01:55:01Z
+#   model   : /tmp/models/Qwen2.5-32B-Instruct-Q4_K_M.gguf
+#   size    : 19G  (weights > 15 GiB A2 VRAM)
+#   gpu     : 0 (A2, 15356 MiB)   n_predict=48   prompt="The capital of France is"
+#   binary  : /tmp/llama-vramer-batched/build/bin/llama-completion
+############################################################
+
+=== (a) FULL OFFLOAD  -ngl 99  (expected: OOM -- the model does not fit) ===
+full-offload/ngl99 rc=1   tok/s=n/a      peakVRAM=76      MiB  H2D=-          MiB  hit=-%
+    -> non-zero exit. failure tail:
+       0.07.232.130 E ggml_backend_cuda_buffer_type_alloc_buffer: allocating 18508.35 MiB on device 0: cudaMalloc failed: out of memory
+       0.07.232.160 E ggml_backend_buft_alloc_buffer_n_default: failed to allocate CUDA0 buffer of size 19407413248
+       0.08.346.582 E llama_model_load: error loading model: unable to allocate CUDA0 buffer
+       0.08.346.628 E llama_completion: error: unable to create context
+
+=== (b) NATIVE PARTIAL OFFLOAD  -ngl 49  (honest native fallback) ===
+native-partial/ngl49 (r1) rc=0   tok/s=0.98     peakVRAM=14935   MiB  H2D=-          MiB  hit=-%
+native-partial/ngl49 (r2) rc=0   tok/s=1.00     peakVRAM=14774   MiB  H2D=-          MiB  hit=-%
+
+=== (b') NATIVE CPU-OFFLOAD  -ngl 99 -ot FFN=CPU  (llama's own H2D, no VRAMER) ===
+native-cpuoff (r1) rc=0   tok/s=0.33     peakVRAM=4003    MiB  H2D=-          MiB  hit=-%
+native-cpuoff (r2) rc=0   tok/s=0.33     peakVRAM=3778    MiB  H2D=-          MiB  hit=-%
+
+=== (c) VRAMER-PAGED  -ngl 99 -ot FFN=CPU, FFN served through a FIXED budget ===
+vramer/4096MiB (r1) rc=0   tok/s=0.32     peakVRAM=7874    MiB  H2D=602840.00  MiB  hit=77.8%
+vramer/4096MiB (r2) rc=0   tok/s=0.29     peakVRAM=7874    MiB  H2D=600984.00  MiB  hit=71.7%
+    [correctness] vramer/4096MiB output BYTE-IDENTICAL to native-cpuoff
+    [VRAMER] ENABLED: paging weights from '/tmp/models/Qwen2.5-32B-Instruct-Q4_K_M.gguf' through a 4096 MiB budget (page 4 MiB, 1024 slots)
+    [VRAMER] ===== weight paging summary =====
+    [VRAMER] paged weight set (host, NOT resident in VRAM): 15693.75 MiB across 192 tensors
+    [VRAMER] VRAM budget: 4096.00 MiB (page 4.00 MiB, 1024 slots) -- SMALLER than paged set
+    [VRAMER] copies served from VRAMER: 9408  (of which 0 were MoE expert stacks)
+    [VRAMER] bytes streamed (active only): 768993.75 MiB
+    [VRAMER] MoE: 0 active-expert slices paged; a full-stack copy would have moved 0.00 MiB -> streamed 0.0% of that
+    [VRAMER] pager: hits=144783 misses=57097 hit_rate=71.7% evictions=149222
+    [VRAMER] bytes_h2d=600984.00 MiB  <- real host->device paging traffic
+    [VRAMER] ==================================
+vramer/8192MiB (r1) rc=0   tok/s=0.43     peakVRAM=11970   MiB  H2D=400676.00  MiB  hit=83.3%
+vramer/8192MiB (r2) rc=0   tok/s=0.41     peakVRAM=11970   MiB  H2D=395492.00  MiB  hit=81.3%
+    [correctness] vramer/8192MiB output BYTE-IDENTICAL to native-cpuoff
+    [VRAMER] ENABLED: paging weights from '/tmp/models/Qwen2.5-32B-Instruct-Q4_K_M.gguf' through a 8192 MiB budget (page 4 MiB, 2048 slots)
+    [VRAMER] ===== weight paging summary =====
+    [VRAMER] paged weight set (host, NOT resident in VRAM): 15693.75 MiB across 192 tensors
+    [VRAMER] VRAM budget: 8192.00 MiB (page 4.00 MiB, 2048 slots) -- SMALLER than paged set
+    [VRAMER] copies served from VRAMER: 9408  (of which 0 were MoE expert stacks)
+    [VRAMER] bytes streamed (active only): 768993.75 MiB
+    [VRAMER] MoE: 0 active-expert slices paged; a full-stack copy would have moved 0.00 MiB -> streamed 0.0% of that
+    [VRAMER] pager: hits=164227 misses=37653 hit_rate=81.3% evictions=96825
+    [VRAMER] bytes_h2d=395492.00 MiB  <- real host->device paging traffic
+    [VRAMER] ==================================
+
+raw logs + summary under: /vramer/benchmarks/raw/bigmodel
