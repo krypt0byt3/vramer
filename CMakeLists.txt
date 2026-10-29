@@ -86,6 +86,10 @@ if(VRAMER_BUILD_TESTS)
   target_link_libraries(test_c_api PRIVATE vramer CUDA::cudart)
   set_target_properties(test_c_api PROPERTIES LINKER_LANGUAGE CXX)
   add_test(NAME c_api COMMAND test_c_api)
+
+  add_executable(test_file_source tests/test_file_source.cu)
+  target_link_libraries(test_file_source PRIVATE vramer CUDA::cudart)
+  add_test(NAME file_source COMMAND test_file_source)
 endif()
 
 # ----------------------------------------------------------------------------

@@ -1,0 +1,5 @@
+# iostat -x sda summaries (read throughput, util, competing writes)
+## headline 120GiB cold scan (budget 4GiB, page 64MiB, demand-only):
+  read avg=462819 kB/s (0.46 GB/s) min=140606 max=536906 util=74.3% peak_competing_write=27 kB/s (n=145)
+## full page-size/prefetch sweep window:
+  read avg=317371 kB/s (0.32 GB/s) min=50200 max=593966 peak_competing_write=142 kB/s (n=2010)

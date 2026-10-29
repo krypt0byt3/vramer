@@ -1,0 +1,61 @@
+### cell=p64_pf1  budget=4GiB  args: --page-size 64MiB --prefetch-workers 1 --prefetch-ahead 2
+--- rep 1 (06:21:00) ---
+Source:       mmap:/var/tmp/vramer-ltr-data/ltr120.bin
+Source size:  120 GiB
+GPUs:         0 (independent cache each)
+VRAM budget:  4.00 GiB per GPU
+Page size:    64.0 MiB
+Staging ring: 2 x 64.0 MiB pinned
+Xfer streams: 1
+Eviction:     lru
+Prefetch:     1 worker(s), ahead=2
+
+Results
+  elapsed:     611.984 s
+  H2D bytes:   120 GiB
+  H2D rate*:   0.20 GiB/s
+  hits:        1919
+  misses:      1
+  hit rate:    99.9%
+  prefetches:  1919 (queue skips 0)
+  direct DMA:  0 (pinned source, no staging copy)
+  evictions:   1856
+  src read:    611564.382 ms
+  stall:       10.666 ms
+  D2H bytes:   0.00 B (write-back)
+  sync fallbk: 0
+  checksum:    4010803200
+
+*End-to-end pager rate: includes source->pinned staging copy, H2D,
+ lightweight GPU work, and cache management.
+
+--- rep 2 (06:31:15) ---
+Source:       mmap:/var/tmp/vramer-ltr-data/ltr120.bin
+Source size:  120 GiB
+GPUs:         0 (independent cache each)
+VRAM budget:  4.00 GiB per GPU
+Page size:    64.0 MiB
+Staging ring: 2 x 64.0 MiB pinned
+Xfer streams: 1
+Eviction:     lru
+Prefetch:     1 worker(s), ahead=2
+
+Results
+  elapsed:     588.346 s
+  H2D bytes:   120 GiB
+  H2D rate*:   0.20 GiB/s
+  hits:        1919
+  misses:      1
+  hit rate:    99.9%
+  prefetches:  1919 (queue skips 0)
+  direct DMA:  0 (pinned source, no staging copy)
+  evictions:   1856
+  src read:    587933.746 ms
+  stall:       10.987 ms
+  D2H bytes:   0.00 B (write-back)
+  sync fallbk: 0
+  checksum:    4010803200
+
+*End-to-end pager rate: includes source->pinned staging copy, H2D,
+ lightweight GPU work, and cache management.
+

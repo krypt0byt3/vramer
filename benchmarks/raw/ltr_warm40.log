@@ -1,0 +1,116 @@
+### COLD (cache dropped, first read from disk)
+Source:       mmap:/var/tmp/vramer-ltr-data/warm40.bin
+Source size:  40.0 GiB
+GPUs:         0 (independent cache each)
+VRAM budget:  4.00 GiB per GPU
+Page size:    64.0 MiB
+Staging ring: 2 x 64.0 MiB pinned
+Xfer streams: 1
+Eviction:     lru
+Prefetch:     0 worker(s), ahead=0
+
+Results
+  elapsed:     102.186 s
+  H2D bytes:   40.0 GiB
+  H2D rate*:   0.39 GiB/s
+  hits:        0
+  misses:      640
+  hit rate:    0.0%
+  prefetches:  0 (queue skips 0)
+  direct DMA:  0 (pinned source, no staging copy)
+  evictions:   576
+  src read:    102021.652 ms
+  stall:       3.898 ms
+  D2H bytes:   0.00 B (write-back)
+  sync fallbk: 0
+  checksum:    1336934400
+
+*End-to-end pager rate: includes source->pinned staging copy, H2D,
+ lightweight GPU work, and cache management.
+### WARM rep1 (served from page cache)
+Source:       mmap:/var/tmp/vramer-ltr-data/warm40.bin
+Source size:  40.0 GiB
+GPUs:         0 (independent cache each)
+VRAM budget:  4.00 GiB per GPU
+Page size:    64.0 MiB
+Staging ring: 2 x 64.0 MiB pinned
+Xfer streams: 1
+Eviction:     lru
+Prefetch:     0 worker(s), ahead=0
+
+Results
+  elapsed:     7.075 s
+  H2D bytes:   40.0 GiB
+  H2D rate*:   5.65 GiB/s
+  hits:        0
+  misses:      640
+  hit rate:    0.0%
+  prefetches:  0 (queue skips 0)
+  direct DMA:  0 (pinned source, no staging copy)
+  evictions:   576
+  src read:    5282.964 ms
+  stall:       1712.972 ms
+  D2H bytes:   0.00 B (write-back)
+  sync fallbk: 0
+  checksum:    1336934400
+
+*End-to-end pager rate: includes source->pinned staging copy, H2D,
+ lightweight GPU work, and cache management.
+### WARM rep2 (served from page cache)
+Source:       mmap:/var/tmp/vramer-ltr-data/warm40.bin
+Source size:  40.0 GiB
+GPUs:         0 (independent cache each)
+VRAM budget:  4.00 GiB per GPU
+Page size:    64.0 MiB
+Staging ring: 2 x 64.0 MiB pinned
+Xfer streams: 1
+Eviction:     lru
+Prefetch:     0 worker(s), ahead=0
+
+Results
+  elapsed:     7.337 s
+  H2D bytes:   40.0 GiB
+  H2D rate*:   5.45 GiB/s
+  hits:        0
+  misses:      640
+  hit rate:    0.0%
+  prefetches:  0 (queue skips 0)
+  direct DMA:  0 (pinned source, no staging copy)
+  evictions:   576
+  src read:    6442.276 ms
+  stall:       811.841 ms
+  D2H bytes:   0.00 B (write-back)
+  sync fallbk: 0
+  checksum:    1336934400
+
+*End-to-end pager rate: includes source->pinned staging copy, H2D,
+ lightweight GPU work, and cache management.
+### WARM rep3 (served from page cache)
+Source:       mmap:/var/tmp/vramer-ltr-data/warm40.bin
+Source size:  40.0 GiB
+GPUs:         0 (independent cache each)
+VRAM budget:  4.00 GiB per GPU
+Page size:    64.0 MiB
+Staging ring: 2 x 64.0 MiB pinned
+Xfer streams: 1
+Eviction:     lru
+Prefetch:     0 worker(s), ahead=0
+
+Results
+  elapsed:     7.040 s
+  H2D bytes:   40.0 GiB
+  H2D rate*:   5.68 GiB/s
+  hits:        0
+  misses:      640
+  hit rate:    0.0%
+  prefetches:  0 (queue skips 0)
+  direct DMA:  0 (pinned source, no staging copy)
+  evictions:   576
+  src read:    5319.449 ms
+  stall:       1638.286 ms
+  D2H bytes:   0.00 B (write-back)
+  sync fallbk: 0
+  checksum:    1336934400
+
+*End-to-end pager rate: includes source->pinned staging copy, H2D,
+ lightweight GPU work, and cache management.

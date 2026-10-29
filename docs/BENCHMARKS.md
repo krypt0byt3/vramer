@@ -328,6 +328,20 @@ precisely bounded: *run a model that overflows the card under a hard, chosen VRA
 cap, faster than blind cpu-offload buys at that cap.* It is not a general
 throughput win.
 
+## Too big to fit — *in host RAM* (the disk tier)
+
+The case above overflows the **card**; the next tier down overflows **host
+RAM**. A 120 GiB backing file on this 78 GiB-RAM box was paged, byte-verified,
+through a 4 GiB VRAM budget on a 15 GiB A2 — a working set that cannot be loaded
+natively at all. That path is **disk-bound at SATA-SSD speed (~0.4 GiB/s)**,
+about **14× slower** than when the same store fits in RAM and is served from the
+OS page cache (~5.5 GiB/s), so the contribution there is *correctness and a
+bounded footprint for a >RAM working set*, not throughput. It is **not**
+GPUDirect Storage (not installed; GDS is the documented next step). Full
+scenario, exact commands, the raw-disk ceiling, the cold/warm/page-size/prefetch
+table, and honesty caveats (shared, contended SATA SSD): see
+[`LARGER_THAN_RAM.md`](LARGER_THAN_RAM.md).
+
 ## Reproduce
 
 ```bash
