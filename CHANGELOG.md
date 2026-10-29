@@ -7,6 +7,21 @@ All notable changes to VRAMER are documented here. Format follows
 ## [Unreleased]
 
 ### Added
+- **Larger-than-RAM disk tier** (`docs/LARGER_THAN_RAM.md`, "Too big to fit — in
+  host RAM" in `docs/BENCHMARKS.md`, `benchmarks/larger_than_ram/`, raw logs under
+  `benchmarks/raw/ltr_*.log`, new ctest `file_source`) — pages a **120 GiB**
+  backing file (larger than this box's 78 GiB RAM, so unloadable natively) through
+  a 4 GiB VRAM budget via the existing `MmapFileSource`, byte-verified (checksum
+  matches across every page-size/prefetch config; `file_source` does full
+  every-byte verification incl. reload-after-eviction). Honest finding: the
+  disk → page cache → pinned staging → GPU path is **disk-bound at SATA-SSD speed
+  (~0.4 GiB/s cold)**, ~14× slower than the same store served warm from the page
+  cache (~5.5 GiB/s), and the pager extracts ~96% of the device's cold read
+  bandwidth — so the win is **correctness + a bounded footprint for a >RAM working
+  set**, not throughput. Numbers are a floor from a shared, contended SATA SSD;
+  GPUDirect Storage (cuFile) is the documented next step (not installed; a QEMU VM
+  wouldn't do true P2P DMA). No core change — reuses `MmapFileSource` and
+  `bench --source file`.
 - **Too-big-to-fit demo** (`examples/llamacpp/run_demo_bigmodel.sh`,
   `examples/llamacpp/README_BIGMODEL.md`, "Too big to fit" in `docs/BENCHMARKS.md`,
   raw logs under `benchmarks/raw/bigmodel/`) — runs **Qwen2.5-32B Q4_K_M (18.5 GiB)

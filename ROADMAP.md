@@ -78,9 +78,23 @@ Paging an oversized dense model for single-stream decode is PCIe-bound — see
    sub-card VRAM cap*. It still loses raw throughput to the only-fitting `-ngl 49`
    (~1 tok/s, which pins ~100% of the card). *Remaining:* DeepSpeed ZeRO-Infinity /
    FSDP comparison; a model too big for host **RAM** (→ #6, GPUDirect/NVMe).
-6. **GPUDirect Storage (cuFile) / `DevDaxSource`** — stream straight from NVMe
-   (models larger than *RAM*) and the CXL/PMEM tier story. `MemorySource` already
-   abstracts the tier.
+6. 🟢 **Larger-than-RAM disk tier.** *Correctness demonstrated; GPUDirect Storage
+   still the open throughput step.* VRAMER's existing `MmapFileSource` pages a
+   **120 GiB** backing file — larger than this box's 78 GiB RAM, so it cannot be
+   loaded natively at all — through a 4 GiB VRAM budget on a 15 GiB A2,
+   byte-verified (checksum matches in every page-size/prefetch config; new ctest
+   `file_source` does full every-byte verification incl. reload-after-eviction).
+   The honest finding: this path (disk → OS page cache → pinned staging → GPU) is
+   **disk-bound at SATA-SSD speed (~0.4 GiB/s cold)**, ~14× slower than when the
+   same store fits in RAM and serves from the page cache (~5.5 GiB/s); the pager
+   extracts ~96% of the device's cold read bandwidth (`src_read` = 99.85% of
+   wall), so the contribution is **correctness + a bounded footprint for a >RAM
+   working set**, not throughput. Numbers are a floor from a shared, contended
+   SATA SSD. Full scenario in [`docs/LARGER_THAN_RAM.md`](docs/LARGER_THAN_RAM.md)
+   and `docs/BENCHMARKS.md`. **Remaining:** **GPUDirect Storage (cuFile)** to
+   stream NVMe→GPU without the page-cache/staging bounce (not installed here, and
+   a QEMU VM wouldn't do true P2P DMA anyway — needs bare metal + NVMe); a
+   `DevDaxSource` for the CXL/PMEM tier.
 
 ## Tier 3 — research bets
 
