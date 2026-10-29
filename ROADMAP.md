@@ -91,7 +91,12 @@ Paging an oversized dense model for single-stream decode is PCIe-bound — see
    wall), so the contribution is **correctness + a bounded footprint for a >RAM
    working set**, not throughput. Numbers are a floor from a shared, contended
    SATA SSD. Full scenario in [`docs/LARGER_THAN_RAM.md`](docs/LARGER_THAN_RAM.md)
-   and `docs/BENCHMARKS.md`. **Remaining:** **GPUDirect Storage (cuFile)** to
+   and `docs/BENCHMARKS.md`. Now also demonstrated end-to-end on a **real LLM**:
+   Qwen2.5-72B-Instruct F16 (**135.9 GiB, 1.73× host RAM**) generates
+   byte-identical text with its 131 GiB weight set paged through a 4 GiB VRAM
+   budget *and* the process confined to an enforced 24 GiB cgroup host-RAM cap —
+   see [`examples/llamacpp/README_LARGER_THAN_RAM.md`](examples/llamacpp/README_LARGER_THAN_RAM.md).
+   **Remaining:** **GPUDirect Storage (cuFile)** to
    stream NVMe→GPU without the page-cache/staging bounce (not installed here, and
    a QEMU VM wouldn't do true P2P DMA anyway — needs bare metal + NVMe); a
    `DevDaxSource` for the CXL/PMEM tier.

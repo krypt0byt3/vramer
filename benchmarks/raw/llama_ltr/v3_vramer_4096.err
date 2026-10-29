@@ -1,0 +1,60 @@
+0.00.195.941 I llama_completion: llama backend init
+0.00.195.997 I llama_completion: load the model and apply lora adapter, if any
+0.01.308.308 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.01.400.792 W llama_model_loader: tensor overrides to CPU are used with mmap enabled - consider using --load-mode none for better performance
+11.24.681.664 I cmn          init: llama threadpool init, n_threads = 24
+[VRAMER] ENABLED: paging weights from '/var/tmp/vramer-ltr-b-models/qwen2.5-72b-instruct-f16-merged.gguf' through a 4096 MiB budget (page 4 MiB, 1024 slots)
+21.51.452.325 I 
+21.51.452.637 I system_info: n_threads = 24 (n_threads_batch = 24) / 24 | CUDA : ARCHS = 860 | USE_GRAPHS = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
+21.51.452.639 I 
+21.51.453.423 I sampler seed: 4294967295
+21.51.453.498 I sampler params: 
+	repeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 0.000
+	dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
+	top_k = 40, top_p = 0.950, min_p = 0.050, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.000
+	mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
+21.51.453.515 I sampler chain: logits -> ?penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> greedy 
+21.51.453.516 I generate: n_ctx = 512, n_batch = 2048, n_predict = 4, n_keep = 0
+21.51.453.517 I 
+62.33.341.310 I common_perf_print:    sampling time =       6.67 ms
+62.33.341.312 I common_perf_print:    samplers time =       1.11 ms /     9 tokens
+62.33.341.393 I common_perf_print:        load time = 1310248.27 ms
+62.33.341.399 I common_perf_print: prompt eval time =  505158.82 ms /     5 tokens (101031.76 ms per token,     0.01 tokens per second)
+62.33.341.404 I common_perf_print:        eval time = 1936721.12 ms /     3 runs   (645573.71 ms per token,     0.00 tokens per second)
+62.33.341.406 I common_perf_print:       total time = 2441889.11 ms /     8 tokens
+62.33.341.409 I common_perf_print: unaccounted time =       2.50 ms /   0.0 %      (total - sampling - prompt eval - eval) / (total)
+62.33.341.410 I common_perf_print:    graphs reused =          2
+62.33.341.411 I common_perf_print:   graph reallocs =          0    /     0        (same size) / (changed size)
+
+[VRAMER] ===== weight paging summary =====
+[VRAMER] paged weight set (host, NOT resident in VRAM): 134400.00 MiB across 560 tensors
+[VRAMER] VRAM budget: 4096.00 MiB (page 4.00 MiB, 1024 slots) -- SMALLER than paged set
+[VRAMER] copies served from VRAMER: 2800  (of which 0 were MoE expert stacks)
+[VRAMER] bytes streamed (active only): 672000.00 MiB
+[VRAMER] MoE: 0 active-expert slices paged; a full-stack copy would have moved 0.00 MiB -> streamed 0.0% of that
+[VRAMER] pager: hits=149634 misses=21166 hit_rate=87.6% evictions=164246
+[VRAMER] bytes_h2d=661080.00 MiB  <- real host->device paging traffic
+[VRAMER] ==================================
+	Command being timed: "/tmp/llama-vramer-ltr/build/bin/llama-completion -m /var/tmp/vramer-ltr-b-models/qwen2.5-72b-instruct-f16-merged.gguf -p The capital of France is -n 4 -c 512 --temp 0 -no-cnv --seed 1 -ngl 99 -ot (ffn_(down|gate|up)|attn_(q|k|v|output))\.weight=CPU"
+	User time (seconds): 214.25
+	System time (seconds): 1206.24
+	Percent of CPU this job got: 37%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:02:36
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 37880412
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 62399
+	Minor (reclaiming a frame) page faults: 8229845
+	Voluntary context switches: 691200
+	Involuntary context switches: 197795
+	Swaps: 0
+	File system inputs: 1441271776
+	File system outputs: 72
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

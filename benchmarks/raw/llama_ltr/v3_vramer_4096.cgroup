@@ -1,0 +1,30 @@
+# VRAMER phase-3 cgroup host-RAM accounting (captured live during run, 2026-10-29T10:46:29Z)
+scope: /sys/fs/cgroup/system.slice/run-r3efe5b6062794a91ae97a1bca22e0829.scope
+memory.max     = 25769803776 (24G)
+memory.peak    = 25769803776 (24G)
+memory.current = 25765875712 (24G)
+memory.swap.current = 0
+--- memory.stat key lines ---
+anon 189399040
+file 25044238336
+inactive_file 1884577792
+active_file 23062646784
+unevictable 0
+pgscan 132417487
+pgsteal 132393362
+pgscan_kswapd 0
+pgscan_direct 132417487
+pgscan_khugepaged 0
+pgscan_proactive 0
+pgsteal_kswapd 0
+pgsteal_direct 132393362
+pgsteal_khugepaged 0
+pgsteal_proactive 0
+pgmajfault 41000
+--- /proc/89511/status (RSS is inflated by double-mapping the GGUF; cgroup is authoritative) ---
+VmHWM:	37880412 kB
+VmRSS:	37449820 kB
+RssAnon:	  184864 kB
+RssFile:	37170216 kB
+RssShmem:	   94740 kB
+VmSwap:	       0 kB

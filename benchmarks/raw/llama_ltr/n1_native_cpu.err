@@ -1,0 +1,48 @@
+0.00.178.010 I llama_completion: llama backend init
+0.00.178.046 I llama_completion: load the model and apply lora adapter, if any
+0.01.410.593 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+10.48.661.968 I cmn          init: llama threadpool init, n_threads = 24
+25.28.869.065 I 
+25.28.948.441 I system_info: n_threads = 24 (n_threads_batch = 24) / 24 | CUDA : ARCHS = 860 | USE_GRAPHS = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
+25.28.948.462 I 
+25.29.121.269 I sampler seed: 4294967295
+25.29.121.722 I sampler params: 
+	repeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 0.000
+	dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
+	top_k = 40, top_p = 0.950, min_p = 0.050, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.000
+	mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
+25.29.121.777 I sampler chain: logits -> ?penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> min-p -> ?xtc -> temp-ext -> greedy 
+25.29.121.782 I generate: n_ctx = 512, n_batch = 2048, n_predict = 1, n_keep = 0
+25.29.121.782 I 
+37.39.715.273 I common_perf_print:    sampling time =      21.37 ms
+37.39.715.277 I common_perf_print:    samplers time =       5.37 ms /     6 tokens
+37.39.715.287 I common_perf_print:        load time = 1527537.37 ms
+37.39.715.293 I common_perf_print: prompt eval time =  730546.49 ms /     5 tokens (146109.30 ms per token,     0.01 tokens per second)
+37.39.715.627 I common_perf_print:        eval time =       0.00 ms /     1 runs   (    0.00 ms per token,      inf tokens per second)
+37.39.715.631 I common_perf_print:       total time =  730846.23 ms /     6 tokens
+37.39.715.635 I common_perf_print: unaccounted time =     278.36 ms /   0.0 %      (total - sampling - prompt eval - eval) / (total)
+37.39.715.636 I common_perf_print:    graphs reused =          0
+37.39.715.637 I common_perf_print:   graph reallocs =          1    /     0        (same size) / (changed size)
+	Command being timed: "/tmp/llama-vramer-ltr/build/bin/llama-completion -m /var/tmp/vramer-ltr-b-models/qwen2.5-72b-instruct-f16-merged.gguf -p The capital of France is -n 1 -c 512 --temp 0 -no-cnv --seed 1 -ngl 0"
+	User time (seconds): 603.19
+	System time (seconds): 1554.04
+	Percent of CPU this job got: 95%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 37:47.08
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 79266008
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 76686
+	Minor (reclaiming a frame) page faults: 3642373
+	Voluntary context switches: 1074765
+	Involuntary context switches: 795344
+	Swaps: 0
+	File system inputs: 828943912
+	File system outputs: 48
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0

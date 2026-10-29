@@ -342,6 +342,36 @@ scenario, exact commands, the raw-disk ceiling, the cold/warm/page-size/prefetch
 table, and honesty caveats (shared, contended SATA SSD): see
 [`LARGER_THAN_RAM.md`](LARGER_THAN_RAM.md).
 
+## Too big to fit in host RAM — a *real* LLM (Qwen2.5-72B F16, 135.9 GiB)
+
+The disk-tier result above used a synthetic backing file. The llama.cpp
+counterpart runs a **real model larger than host RAM**: Qwen2.5-72B-Instruct
+**F16, 145,925,989,312 B = 135.9 GiB** (ungated; fp16 split merged to one file),
+**1.73× the 78.5 GiB host RAM**, on a single 15 GiB A2. The FFN *and*
+attention/output projections are routed to host (`-ot
+'(ffn_(down|gate|up)|attn_(q|k|v|output))\.weight=CPU'`) and paged from the GGUF;
+only `token_embd` + norms stay resident. Same prompt/seed/greedy, `-c 512`.
+
+| config | runs? | decode tok/s | host RAM (peak) | peak VRAM | output |
+|---|---|---|---|---|---|
+| native cpu-offload (reference, uncapped) | yes | 0.0020 (503 s/tok) | **75.78 GiB** (mmap fills RAM) | 3294 MiB | `Paris. What is` |
+| **VRAMER /4 GiB budget, 24 GiB RAM cap** | yes | 0.0015 (646 s/tok) | **24 GiB** (cgroup peak; anon 189 MB) | 7390 MiB | `Paris. What is` — **byte-identical** |
+
+The VRAMER row paged a **131.25 GiB weight set (560 tensors) through a 4 GiB VRAM
+budget** (hit-rate 87.6 %, 645.6 GiB real H2D over 5 passes) while the whole
+process was confined to an **enforced 24 GiB cgroup host-RAM cap** (`memory.peak`
+= `memory.max`; swap off; ~505 GiB `pgsteal_direct`), versus the native
+reference's 75.78 GiB. **Honest framing:** native mmap *also* runs a >RAM model
+(page-cache thrash), so this is not "only VRAMER can"; VRAMER's win is the
+**doubly-bounded, tunable footprint** (named VRAM budget *and* a host-RAM ceiling
+≪ model) with **byte-identical** output — at a disk-bound ~0.0015 tok/s floor on
+this SATA SSD. The `/usr/bin/time` RSS (~37 GiB) overcounts because llama.cpp and
+VRAMER's `MmapFileSource` both mmap the same file in one process (shared pages
+double-counted in `VmRSS`, once by the cgroup); the cgroup number is
+authoritative. Full scenario, commands, and caveats:
+[`../examples/llamacpp/README_LARGER_THAN_RAM.md`](../examples/llamacpp/README_LARGER_THAN_RAM.md);
+raw logs under [`../benchmarks/raw/llama_ltr/`](../benchmarks/raw/llama_ltr/).
+
 ## Reproduce
 
 ```bash

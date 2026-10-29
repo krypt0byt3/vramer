@@ -1,0 +1,33 @@
+############################################################
+# VRAMER 'model larger than host RAM' demo   2026-10-29T09:19:34Z
+#   model : /var/tmp/vramer-ltr-b-models/qwen2.5-72b-instruct-f16-merged.gguf
+#   size  : 145925989312 B (135.9 GiB)
+#   RAM   : 84328517632 B (78.5 GiB)  -> model > RAM: YES
+#   gpu   : 0   npred=4 ctx=512 prompt="The capital of France is"  ramcap=24G
+#   binary: /tmp/llama-vramer-ltr/build/bin/llama-completion
+############################################################
+
+=== (2) NATIVE CPU-OFFLOAD  -ngl 99 -ot FILTER=CPU  (byte REFERENCE, VRAMER off) ===
+>>> native-cpuoff  (npred=4 cap=0)  09:19:34
+    rc=0  tok/s=0.00  peakVRAM=3294 MiB  peakRSS=79458532 KiB (75.78 GiB)
+
+=== (3) VRAMER  budget=4096MiB  host-RAM cap=24G  (headline: bounded footprint, >RAM) ===
+>>> vramer/4096MiB  (npred=4 cap=24G)  10:01:10
+    rc=0  tok/s=0.00  peakVRAM=7390 MiB  peakRSS=37880412 KiB (36.13 GiB)
+    [VRAMER] ENABLED: paging weights from '/var/tmp/vramer-ltr-b-models/qwen2.5-72b-instruct-f16-merged.gguf' through a 4096 MiB budget (page 4 MiB, 1024 slots)
+    [VRAMER] ===== weight paging summary =====
+    [VRAMER] paged weight set (host, NOT resident in VRAM): 134400.00 MiB across 560 tensors
+    [VRAMER] VRAM budget: 4096.00 MiB (page 4.00 MiB, 1024 slots) -- SMALLER than paged set
+    [VRAMER] copies served from VRAMER: 2800  (of which 0 were MoE expert stacks)
+    [VRAMER] bytes streamed (active only): 672000.00 MiB
+    [VRAMER] MoE: 0 active-expert slices paged; a full-stack copy would have moved 0.00 MiB -> streamed 0.0% of that
+    [VRAMER] pager: hits=149634 misses=21166 hit_rate=87.6% evictions=164246
+    [VRAMER] bytes_h2d=661080.00 MiB  <- real host->device paging traffic
+    [VRAMER] ==================================
+    [correctness] vramer/4096MiB output BYTE-IDENTICAL to native-cpuoff reference
+
+=== (1) NATIVE CPU  -ngl 0  (honesty control: can native run a >RAM model?) ===
+>>> native-cpu/ngl0  (npred=1 cap=0)  11:03:53
+    rc=0  tok/s=n/a  peakVRAM=2814 MiB  peakRSS=79266008 KiB (75.59 GiB)
+
+raw logs under: /tmp/vramer-ltr-b/benchmarks/raw/llama_ltr

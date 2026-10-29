@@ -1,0 +1,5 @@
+# iostat -x sda read-throughput summary (active samples, rkB/s>1000), captured during the LTR run
+# SATA-class disk; floor numbers on a shared/contended device. r_await in ms, %util peak.
+n1_native_cpu:       read median=0.178 p90=0.227 max=0.467 GB/s  r_await p50/max=118/709 ms  util_max=97.0%
+n2_native_cpuoff:    read median=0.242 p90=0.459 max=0.526 GB/s  r_await p50/max=59/247 ms  util_max=95.8%
+v3_vramer_4096:      read median=0.215 p90=0.233 max=0.461 GB/s  r_await p50/max=24/450 ms  util_max=95.9%
